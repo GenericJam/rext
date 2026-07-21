@@ -30,10 +30,14 @@ Boot a BEAM to connect to (from the `rext` repo): see its README / `dev/demo.exs
   `PLAN.md`, a human sees the window on a real, arch-matched display before CI
   is trusted.
 
+## Fonts
+
+Text uses **Inter** (OFL), bundled at `src/main/resources/font/Inter.ttf` and
+applied in `Main.kt`, so it renders consistently across macOS/Windows/Linux
+instead of depending on each OS's system fonts — the biggest "looks different
+per platform" variable, removed. License: `src/main/resources/font/OFL.txt`.
+
 ## TODO
 
-- **Bundle a font** (`src/main/resources/`, loaded in `Main.kt`) so text is
-  consistent across platforms rather than depending on system fonts — see
-  `PLAN.md` (Compose consistency).
 - Components track the protocol catalog (`column`/`row`/`text`/`button`);
   add new node types here as the protocol grows (e.g. `text_field`).

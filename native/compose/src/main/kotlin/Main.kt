@@ -20,6 +20,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.platform.Font
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Window
@@ -47,6 +49,10 @@ class RNode(val type: String, private val props: JSONObject, val children: List<
     }
   }
 }
+
+// Bundled font (src/main/resources/font/Inter.ttf) so text renders consistently
+// across macOS/Windows/Linux instead of depending on each OS's system fonts.
+private val InterFamily = FontFamily(Font("font/Inter.ttf"))
 
 fun hexColor(s: String?): Color? {
   if (s == null || !s.startsWith("#") || s.length != 7) return null
@@ -124,10 +130,11 @@ fun NodeView(node: RNode, bridge: Bridge) {
         text = node.str("text") ?: "",
         fontSize = (node.num("size") ?: 15).sp,
         color = hexColor(node.str("color")) ?: Color.Unspecified,
+        fontFamily = InterFamily,
       )
     "button" ->
       Button(onClick = { node.str("on_click")?.let { bridge.sendEvent("click", it) } }) {
-        Text(node.str("label") ?: "")
+        Text(node.str("label") ?: "", fontFamily = InterFamily)
       }
     else -> Column { node.children.forEach { NodeView(it, bridge) } }
   }
