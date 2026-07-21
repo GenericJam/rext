@@ -1,0 +1,44 @@
+name: compose
+
+# Builds the Compose Desktop renderer on all three desktop OSes. Compose is
+# JVM/write-once, so this verifies the renderer compiles and its per-OS Compose
+# deps (Skiko) resolve everywhere. It does NOT prove the window renders — that's
+# a human's visual pass on a real display (see PLAN.md). CI is the regression
+# net behind that sign-off.
+
+on:
+  push:
+    branches: [master]
+    paths: ['native/compose/**', '.github/workflows/compose.yml']
+  pull_request:
+    paths: ['native/compose/**', '.github/workflows/compose.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: compose-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    defaults:
+      run:
+        working-directory: native/compose
+        shell: bash # so ./gradlew works on the Windows runner too
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # Compile + assemble. No display needed (only running the app requires one).
+      - run: ./gradlew build --no-daemon
