@@ -1,0 +1,115 @@
+name: tests
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Elixir ${{ matrix.elixir }} / OTP ${{ matrix.otp }}
+    runs-on: ubuntu-latest
+    env:
+      MIX_ENV: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - elixir: '1.20'
+            otp: '29'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: ${{ matrix.elixir }}
+          otp-version: ${{ matrix.otp }}
+
+      - name: Cache deps + _build
+        uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: mix-${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.otp }}-${{ hashFiles('**/mix.lock') }}
+          restore-keys: mix-${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.otp }}-
+
+      - run: mix deps.get
+      - run: mix deps.compile
+      - run: mix compile --warnings-as-errors
+
+      - name: Format check
+        run: mix format --check-formatted
+
+      - name: Credo (strict)
+        run: mix credo --strict
+
+      - name: erlfmt check (src/)
+        # erlfmt is only: :dev, so run the check with MIX_ENV=dev.
+        env:
+          MIX_ENV: dev
+        run: |
+          mix deps.get
+          mix erlfmt --check src/
+
+      - name: Tests
+        run: mix test
+
+  native_lint:
+    name: Native formatters (clang-format + swiftlint)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: clang-format (host NIF + launcher)
+        run: |
+          xcrun clang-format --dry-run -Werror \
+            native/macos/host/rect_nif.c \
+            native/macos/host/rect_host.c
+
+      - name: Install swiftlint
+        run: brew install swiftlint
+
+      - name: swiftlint
+        # Informational until the SwiftUI renderer's style is triaged.
+        continue-on-error: true
+        run: swiftlint lint --reporter github-actions-logging native/macos
+
+  security_scan:
+    name: Security scan (mix_audit)
+    needs: test
+    runs-on: ubuntu-latest
+    if: always()
+    continue-on-error: true
+    env:
+      MIX_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: '1.20'
+          otp-version: '29'
+
+      - name: Cache deps + _build (reuse test job's key)
+        uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: mix-${{ runner.os }}-1.20-29-${{ hashFiles('**/mix.lock') }}
+          restore-keys: mix-${{ runner.os }}-1.20-29-
+
+      - run: mix deps.get
+      - run: mix deps.compile
+
+      # `app.start +` is load-bearing: plain `mix deps.audit` fails with
+      # YamlElixir.read_from_file/1 undefined because mix_audit doesn't
+      # ensure_all_started yaml_elixir on its own.
+      - name: Audit deps
+        run: mix do app.start + deps.audit

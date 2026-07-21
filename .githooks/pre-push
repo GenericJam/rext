@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+# .githooks/pre-push — rect ecosystem pre-push gate (rect / rect_dev / rect_new).
+#
+# Activated per-clone with: git config core.hooksPath .githooks
+# (or run `mix setup`, which does it for you).
+#
+# Ported from mob. Two tiers:
+#
+#   ALWAYS (cheap, sub-10s):
+#     mix format --check-formatted
+#     mix credo --strict
+#     mix compile --warnings-as-errors
+#
+#   ONLY WHEN mix.exs CHANGED IN THIS PUSH (release preflight):
+#     mix test
+#     mix do app.start + deps.audit   (if mix_audit is present)
+#
+# The full suite is intentionally NOT in the always-tier: a 30-60s wait per
+# push is exactly what teaches people to reach for --no-verify. CI runs the
+# suite on every push regardless.
+set -euo pipefail
+
+cheap_checks() {
+    echo "[pre-push] format..."
+    mix format --check-formatted
+
+    echo "[pre-push] credo (strict)..."
+    mix credo --strict
+
+    echo "[pre-push] compile (--warnings-as-errors)..."
+    mix compile --warnings-as-errors
+
+    # erlfmt only exists where there's Erlang source (rect has src/).
+    if [ -d src ] && mix help erlfmt >/dev/null 2>&1; then
+        echo "[pre-push] erlfmt (src/)..."
+        mix erlfmt --check src/
+    fi
+}
+
+release_preflight() {
+    echo "[pre-push] mix.exs changed → running release preflight..."
+    mix test
+
+    # deps.audit needs app.start first (mix_audit doesn't ensure_all_started
+    # its yaml_elixir dep). Gate on availability so this hook is identical
+    # across all three repos.
+    if mix help deps.audit >/dev/null 2>&1; then
+        echo "[pre-push] deps.audit..."
+        mix do app.start + deps.audit
+    fi
+}
+
+# git pipes "<local_ref> <local_sha> <remote_ref> <remote_sha>" per pushed ref.
+zero=0000000000000000000000000000000000000000
+mix_exs_changed=false
+
+while read -r _local_ref local_sha _remote_ref remote_sha; do
+    [ "$local_sha" = "$zero" ] && continue
+
+    if [ "$remote_sha" = "$zero" ]; then
+        range="origin/master..$local_sha"
+    else
+        range="$remote_sha..$local_sha"
+    fi
+
+    if git diff --name-only "$range" 2>/dev/null | grep -qx 'mix.exs'; then
+        mix_exs_changed=true
+    fi
+done
+
+cheap_checks
+
+if [ "$mix_exs_changed" = "true" ]; then
+    release_preflight
+fi
+
+echo "[pre-push] ✓ all checks passed"

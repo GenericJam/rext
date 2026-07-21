@@ -1,0 +1,12 @@
+/_build/
+/deps/
+/doc/
+erl_crash.dump
+*.ez
+
+# native build artifacts
+native/macos/RectRenderer.app/
+native/macos/rect_renderer
+native/macos/host/*.o
+native/macos/host/*.so
+native/macos/host/rect_host

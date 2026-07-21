@@ -1,0 +1,18 @@
+included:
+  - native/macos
+
+# The macOS renderer is a compact SwiftUI file that bridges the BEAM render
+# stream to a switch-on-node-type renderer. Short idiomatic names and a
+# moderately large switch are intentional here, not smells.
+identifier_name:
+  min_length:
+    warning: 1
+    error: 1
+
+cyclomatic_complexity:
+  warning: 40
+  error: 60
+
+file_length:
+  warning: 2000
+  error: 3000
