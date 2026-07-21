@@ -1,14 +1,14 @@
-defmodule Rect.Examples.CounterWindow do
+defmodule Rext.Examples.CounterWindow do
   @moduledoc """
   The canonical hello-world: a counter in a real desktop window, driven by
   Elixir. Proves the full loop — mount → render → native draw → click event →
-  handle_event → re-render — plus the agent harness (`Rect.Test.click/2`).
+  handle_event → re-render — plus the agent harness (`Rext.Test.click/2`).
   """
-  use Rect.Window
+  use Rext.Window
 
   @impl true
   def mount(_params, socket) do
-    {:ok, Rect.Socket.assign(socket, :count, 0)}
+    {:ok, Rext.Socket.assign(socket, :count, 0)}
   end
 
   @impl true
@@ -44,10 +44,10 @@ defmodule Rect.Examples.CounterWindow do
 
   @impl true
   def handle_event("click", %{"tag" => "inc"}, socket) do
-    {:noreply, Rect.Socket.update(socket, :count, &(&1 + 1))}
+    {:noreply, Rext.Socket.update(socket, :count, &(&1 + 1))}
   end
 
   def handle_event("click", %{"tag" => "dec"}, socket) do
-    {:noreply, Rect.Socket.update(socket, :count, &(&1 - 1))}
+    {:noreply, Rext.Socket.update(socket, :count, &(&1 - 1))}
   end
 end

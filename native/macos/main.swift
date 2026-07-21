@@ -1,14 +1,14 @@
-// rect — macOS SwiftUI render backend (prototype).
+// rext — macOS SwiftUI render backend (prototype).
 //
 // Owns NSApplication / the main thread, connects back to the BEAM over a
 // localhost TCP socket (4-byte length-framed JSON, matching Elixir's
 // `{:packet, 4}`), decodes render frames into a SwiftUI view tree, and echoes
-// interaction events back. This is the "render backend" end of rect's
+// interaction events back. This is the "render backend" end of rext's
 // transport-agnostic protocol: the same decode/draw logic is what a future
 // in-process NIF host would call directly instead of reading from a socket.
 //
-// Build:  swiftc main.swift -o rect_renderer -framework AppKit -framework SwiftUI -framework Network
-// Run:    RECT_PORT=8137 ./rect_renderer
+// Build:  swiftc main.swift -o rext_renderer -framework AppKit -framework SwiftUI -framework Network
+// Run:    REXT_PORT=8137 ./rext_renderer
 
 import AppKit
 import SwiftUI
@@ -16,7 +16,7 @@ import Network
 import Foundation
 
 func eprint(_ s: String) {
-    FileHandle.standardError.write(("[rect_renderer] " + s + "\n").data(using: .utf8)!)
+    FileHandle.standardError.write(("[rext_renderer] " + s + "\n").data(using: .utf8)!)
 }
 
 // ── Render-tree model ────────────────────────────────────────────────────────
@@ -81,7 +81,7 @@ final class RenderState: ObservableObject {
 
 // ── Color helper ─────────────────────────────────────────────────────────────
 
-func rectColor(_ hex: String?) -> Color? {
+func rextColor(_ hex: String?) -> Color? {
     guard let hex = hex, hex.hasPrefix("#"), hex.count == 7 else { return nil }
     let v = Int(hex.dropFirst(), radix: 16) ?? 0
     return Color(
@@ -105,7 +105,7 @@ struct NodeView: View {
             }
             .padding(node.num("padding") ?? 0)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .background(rectColor(node.str("background")))
+            .background(rextColor(node.str("background")))
 
         case "row":
             HStack(spacing: node.num("gap") ?? 8) {
@@ -116,7 +116,7 @@ struct NodeView: View {
         case "text":
             Text(node.str("text") ?? "")
                 .font(.system(size: node.num("size") ?? 15))
-                .foregroundColor(rectColor(node.str("color")) ?? .primary)
+                .foregroundColor(rextColor(node.str("color")) ?? .primary)
 
         case "button":
             Button(action: {
@@ -126,7 +126,7 @@ struct NodeView: View {
                     .padding(.horizontal, 14).padding(.vertical, 8)
             }
             .buttonStyle(.plain)
-            .background(rectColor(node.str("color")) ?? Color.gray.opacity(0.3))
+            .background(rextColor(node.str("color")) ?? Color.gray.opacity(0.3))
             .foregroundColor(.white)
             .cornerRadius(8)
 
@@ -252,7 +252,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     // Closing the window quits the renderer (standard single-window desktop
-    // app). Its socket then drops, which halts the BEAM (see RectDev.Boot) —
+    // app). Its socket then drops, which halts the BEAM (see RextDev.Boot) —
     // so closing the window shuts the whole app down.
     func applicationShouldTerminateAfterLastWindowClosed(_ app: NSApplication) -> Bool {
         true
@@ -266,7 +266,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 // and spawned the renderer as a child, inheriting uid 0.)
 if geteuid() == 0 {
     eprint("refusing to run as root: the macOS WindowServer is per-user. "
-        + "Run rect (and `mix rect.run`) as your normal login user, not sudo/root.")
+        + "Run rext (and `mix rext.run`) as your normal login user, not sudo/root.")
     exit(1)
 }
 
@@ -274,8 +274,8 @@ if geteuid() == 0 {
 // queue and must come up even if the window server / GUI session is unavailable
 // (e.g. launched detached from a login session). The delegate only owns the
 // window and shares the same RenderState.
-let port = UInt16(ProcessInfo.processInfo.environment["RECT_PORT"] ?? "8137") ?? 8137
-let target = ProcessInfo.processInfo.environment["RECT_WINDOW"] ?? "main"
+let port = UInt16(ProcessInfo.processInfo.environment["REXT_PORT"] ?? "8137") ?? 8137
+let target = ProcessInfo.processInfo.environment["REXT_WINDOW"] ?? "main"
 eprint("starting; port=\(port) window=\(target)")
 let state = RenderState(target: target)
 let delegate = AppDelegate(state: state)

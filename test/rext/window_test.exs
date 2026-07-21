@@ -1,8 +1,8 @@
-defmodule Rect.WindowTest do
+defmodule Rext.WindowTest do
   use ExUnit.Case, async: true
 
-  alias Rect.Examples.CounterWindow
-  alias Rect.Window
+  alias Rext.Examples.CounterWindow
+  alias Rext.Window
 
   # No bridge started: the window runs headless, which is exactly how the agent
   # harness inspects logical state without a native renderer attached.
@@ -26,10 +26,10 @@ defmodule Rect.WindowTest do
     assert Window.get_socket(pid).assigns.count == 1
   end
 
-  test "a NIF-delivered {:rect_ui_event, ...} routes to handle_event" do
+  test "a NIF-delivered {:rext_ui_event, ...} routes to handle_event" do
     {:ok, pid} = Window.start_link(CounterWindow, %{}, id: "t3", name: :win_t3)
 
-    send(pid, {:rect_ui_event, "click", %{"tag" => "inc"}})
+    send(pid, {:rext_ui_event, "click", %{"tag" => "inc"}})
     :sys.get_state(pid)
     assert Window.get_socket(pid).assigns.count == 1
   end

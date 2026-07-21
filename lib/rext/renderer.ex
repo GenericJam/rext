@@ -1,4 +1,4 @@
-defmodule Rect.Renderer do
+defmodule Rext.Renderer do
   @moduledoc """
   Serializes a window's component tree into a transport-ready JSON frame.
 
@@ -6,7 +6,7 @@ defmodule Rect.Renderer do
   (SwiftUI on macOS today; Compose Multiplatform for Windows/Linux later; an
   in-process NIF host eventually). This module is intentionally
   transport-agnostic: it turns a tree into a normalized map + JSON binary and
-  knows nothing about sockets, NIFs, or windows. `Rect.Bridge` owns the wire.
+  knows nothing about sockets, NIFs, or windows. `Rext.Bridge` owns the wire.
 
   ## Node format
 
@@ -19,11 +19,11 @@ defmodule Rect.Renderer do
         ]
       }
 
-  Atom-valued color/background props resolve through `Rect.Theme`; `on_click` /
+  Atom-valued color/background props resolve through `Rext.Theme`; `on_click` /
   `on_change` become the string event tag the backend echoes back on interaction.
   """
 
-  alias Rect.Theme
+  alias Rext.Theme
 
   @color_props ~w(color background border_color)a
   @space_props ~w(gap padding)a

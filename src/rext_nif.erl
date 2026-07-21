@@ -1,12 +1,12 @@
-%% rect_nif — NIF stub for the in-process render backend.
+%% rext_nif — NIF stub for the in-process render backend.
 %%
 %% Loaded by the embedded BEAM inside the native host binary. Mirrors mob's
 %% `mob_nif.erl` role: declare the NIF surface, load the shared object, and
 %% raise a clear error if a function is called before the NIF loaded.
 %%
-%% The .so path comes from RECT_NIF_PATH (set by the host) or defaults to
-%% "rect_nif" resolved against the load path.
--module(rect_nif).
+%% The .so path comes from REXT_NIF_PATH (set by the host) or defaults to
+%% "rext_nif" resolved against the load path.
+-module(rext_nif).
 
 -export([render/2, register_window/1, simulate_ui_event/3]).
 -nifs([render/2, register_window/1, simulate_ui_event/3]).
@@ -14,8 +14,8 @@
 
 on_load() ->
     Path =
-        case os:getenv("RECT_NIF_PATH") of
-            false -> "rect_nif";
+        case os:getenv("REXT_NIF_PATH") of
+            false -> "rext_nif";
             P -> P
         end,
     erlang:load_nif(Path, 0).

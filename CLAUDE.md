@@ -1,10 +1,10 @@
-# rect — Agent Instructions
+# rext — Agent Instructions
 
-**rect is mob's desktop sibling.** If you know mob, you know rect: same
+**rext is mob's desktop sibling.** If you know mob, you know rext: same
 programming model (a unit of UI is a supervised GenServer that produces a
 component tree; the tree is serialized and drawn by a native backend; events
 come back over the same channel), re-committed to *desktop* paradigm and
-concerns. rect was seeded by copying mob's platform-agnostic core, not by
+concerns. rext was seeded by copying mob's platform-agnostic core, not by
 sharing a library — a common `beam_native_ui` package is a later refactor only
 if duplication proves significant and enduring.
 
@@ -13,15 +13,15 @@ expensive to rediscover.
 
 ---
 
-## What rect is, in one paragraph
+## What rext is, in one paragraph
 
-You write Elixir. A `Rect.Window` is one supervised GenServer whose state is a
-`Rect.Socket`; its `render/1` returns a component tree. `Rect.Renderer`
+You write Elixir. A `Rext.Window` is one supervised GenServer whose state is a
+`Rext.Socket`; its `render/1` returns a component tree. `Rext.Renderer`
 normalizes that tree to a JSON frame, and a render backend draws it. Events
 (clicks, input) come back and route to the window's `handle_event/3`. The window
 state and render tree are authoritative **on the BEAM** — the backend only
 draws — so you connect over Erlang distribution to inspect and drive a running
-app (`Rect.Test`), and hot-reload code without a restart. Desktop paradigm: the
+app (`Rext.Test`), and hot-reload code without a restart. Desktop paradigm: the
 unit is a *window*, apps run *many* at once (many processes), and there is no
 mobile navigation stack — "another view" is "another window", i.e. another
 process.
@@ -30,10 +30,10 @@ process.
 
 | Repo | Role |
 |------|------|
-| `rect` (this repo) | Runtime library, ships in the app. |
-| `rect_dev` | Dev + agent tooling: `mix rect.run`, `mix rect.connect`, MCP (planned). Never a shipped dependency. |
-| `rect_new` | Project generator: `mix rect.new my_app`. |
-| `rect_demo` | Proof-of-concept app (sibling; multi-window). |
+| `rext` (this repo) | Runtime library, ships in the app. |
+| `rext_dev` | Dev + agent tooling: `mix rext.run`, `mix rext.connect`, MCP (planned). Never a shipped dependency. |
+| `rext_new` | Project generator: `mix rext.new my_app`. |
+| `rext_demo` | Proof-of-concept app (sibling; multi-window). |
 
 ## Toolchain — READ THIS FIRST (cross-user env)
 
@@ -50,15 +50,15 @@ Elixir 1.20 / OTP 29 (erts-17.0). `.tool-versions` pins it.
 
 ## The transport architecture (the core design)
 
-`Rect.Transport` is the one seam between a window and its render backend. Two
-implementations, selected by `config :rect, :transport, …`; everything above the
+`Rext.Transport` is the one seam between a window and its render backend. Two
+implementations, selected by `config :rext, :transport, …`; everything above the
 seam (Window, Renderer, Socket, Test) is identical across both:
 
-- **`Rect.NifBridge`** — *in-process*, the **mob-faithful** path. A native host
+- **`Rext.NifBridge`** — *in-process*, the **mob-faithful** path. A native host
   binary owns `main()`, embeds the BEAM as a guest thread, and bridges via the
-  `rect_nif` NIF (render is a direct call; events return via `enif_send`). This
+  `rext_nif` NIF (render is a direct call; events return via `enif_send`). This
   is the production target.
-- **`Rect.Bridge`** — *out-of-process*, a renderer connected over a localhost
+- **`Rext.Bridge`** — *out-of-process*, a renderer connected over a localhost
   socket (`{:packet, 4}` JSON frames). The "Port partner" model; also the path
   to a browser/remote renderer. Fastest to iterate; used for the socket demo.
 
@@ -86,9 +86,9 @@ The full story is in `decisions/2026-07-20-in-process-nif-host.md`. The essentia
   them from the host.
 - **Boot** needs env (`ROOTDIR`, `BINDIR`, `PROGNAME=erl`, `EMU=beam`, `HOME`)
   and an erl arg vector: `-root/-bindir`, `-boot start_clean`, `-pa` for elixir
-  + logger + rect ebin, `-name/-setcookie` (dist), `-eval
-  Rect.Embedded.start()`.
-- **Proven end-to-end**: ERTS + Elixir + rect all boot in-process; the NIF
+  + logger + rext ebin, `-name/-setcookie` (dist), `-eval
+  Rext.Embedded.start()`.
+- **Proven end-to-end**: ERTS + Elixir + rext all boot in-process; the NIF
   receives render frames; events flow back via `enif_send`.
 - **GUI-session caveat**: a window will NOT display when the process is launched
   from a shell detached from the Aqua login session (`screencapture` →
@@ -104,26 +104,26 @@ mix test
 mix compile --warnings-as-errors
 
 # socket renderer (fast iteration, agent-verifiable)
-(cd native/macos && ./build.sh)          # builds RectRenderer.app
-elixir --name rect_demo@127.0.0.1 --cookie rect_secret -S mix run --no-halt dev/demo.exs
+(cd native/macos && ./build.sh)          # builds RextRenderer.app
+elixir --name rext_demo@127.0.0.1 --cookie rext_secret -S mix run --no-halt dev/demo.exs
 
 # in-process NIF host (mob-faithful)
-(cd native/macos/host && ./build.sh)     # builds rect_host (embeds the BEAM)
-./native/macos/host/rect_host            # boots BEAM + rect + NIF in one process
+(cd native/macos/host && ./build.sh)     # builds rext_host (embeds the BEAM)
+./native/macos/host/rext_host            # boots BEAM + rext + NIF in one process
 ```
 
 Then drive over dist from a second node (this is the agent workflow):
 
 ```elixir
-node = :"rect_demo@127.0.0.1"   # or :"rect_host@127.0.0.1"
+node = :"rext_demo@127.0.0.1"   # or :"rext_host@127.0.0.1"
 Node.connect(node)
-Rect.Test.window(node)          # window module
-Rect.Test.assigns(node)         # live assigns
-Rect.Test.tree(node)            # render tree
-Rect.Test.click(node, :inc)     # drive a control by its on_click tag
+Rext.Test.window(node)          # window module
+Rext.Test.assigns(node)         # live assigns
+Rext.Test.tree(node)            # render tree
+Rext.Test.click(node, :inc)     # drive a control by its on_click tag
 ```
 
-Window/tree state is authoritative on the BEAM, so `Rect.Test` works with or
+Window/tree state is authoritative on the BEAM, so `Rext.Test` works with or
 without a renderer attached. Prefer it over screenshots — it's exact and fast.
 
 ## Quality gates — the pre-commit checklist
@@ -146,7 +146,7 @@ swiftlint native/macos     # brew install swiftlint
 yaml_elixir on its own).
 
 Native changes (Swift/C) aren't exercised by Elixir tests — build and drive the
-renderer/host and verify via `Rect.Test` before committing.
+renderer/host and verify via `Rext.Test` before committing.
 
 ## Don't write this slop
 
@@ -170,23 +170,23 @@ first place:
 ## Testing discipline
 
 Every behavior gets a test — including build/CLI helpers (the `mix erlfmt` task,
-`rect_new`'s generator, etc.), not just runtime modules. A bug found by a test
+`rext_new`'s generator, etc.), not just runtime modules. A bug found by a test
 costs minutes; one found by a user costs a report-to-fix cycle. When you touch
 something untested, add coverage or note the follow-up.
 
 ## Key files
 
-- `lib/rect/window.ex` — GenServer wrapper, lifecycle, transport dispatch.
-- `lib/rect/socket.ex` — assigns + window metadata.
-- `lib/rect/renderer.ex` — tree → normalized JSON frame; token resolution.
-- `lib/rect/transport.ex` — the backend seam (behaviour).
-- `lib/rect/bridge.ex` — socket transport (out-of-process).
-- `lib/rect/nif_bridge.ex` — NIF transport (in-process).
-- `lib/rect/test.ex` — agent harness (RPC introspection + drive).
-- `lib/rect/embedded.ex` — boot entry for the in-process host.
-- `src/rect_nif.erl` — NIF stub.
+- `lib/rext/window.ex` — GenServer wrapper, lifecycle, transport dispatch.
+- `lib/rext/socket.ex` — assigns + window metadata.
+- `lib/rext/renderer.ex` — tree → normalized JSON frame; token resolution.
+- `lib/rext/transport.ex` — the backend seam (behaviour).
+- `lib/rext/bridge.ex` — socket transport (out-of-process).
+- `lib/rext/nif_bridge.ex` — NIF transport (in-process).
+- `lib/rext/test.ex` — agent harness (RPC introspection + drive).
+- `lib/rext/embedded.ex` — boot entry for the in-process host.
+- `src/rext_nif.erl` — NIF stub.
 - `native/macos/main.swift` — socket SwiftUI renderer.
-- `native/macos/host/` — in-process host (`rect_nif.c`, `rect_host.c`, `build.sh`).
+- `native/macos/host/` — in-process host (`rext_nif.c`, `rext_host.c`, `build.sh`).
 
 ## Decision log
 
@@ -194,7 +194,7 @@ Non-obvious decisions go in `decisions/YYYY-MM-DD-slug.md` (lightweight ADRs,
 one per decision, append-only; supersede rather than edit). Start there for the
 "why" behind the architecture:
 
-- `2026-07-20-rect-prototype-architecture.md` — the overall shape.
+- `2026-07-20-rext-prototype-architecture.md` — the overall shape.
 - `2026-07-20-in-process-nif-host.md` — the in-process embedding recipe.
 
 ## Keep this file up to date

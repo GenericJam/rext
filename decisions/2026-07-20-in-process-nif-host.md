@@ -3,7 +3,7 @@
 - Date: 2026-07-20
 - Status: accepted
 - Supersedes the "socket is required on macOS" framing in
-  `2026-07-20-rect-prototype-architecture.md` (§"Why the socket transport").
+  `2026-07-20-rext-prototype-architecture.md` (§"Why the socket transport").
 
 ## Context
 
@@ -20,14 +20,14 @@ This decision records the in-process host, now built and verified.
    by `$OTP/erts-17.0/lib/libbeam.a` — the very thing mob had to cross-build for
    iOS is shipped on macOS. A C++ host linking it booted the VM in-process
    (`IN-PROCESS BEAM OK otp=29`).
-2. **Elixir + rect run embedded.** Same host, booting Elixir, ran
-   `Rect.Renderer.frame/2` and returned the JSON frame.
-3. **Full host works.** `native/macos/host/rect_host` boots the embedded BEAM,
-   starts the rect app with the NIF transport, opens the counter window; the NIF
+2. **Elixir + rext run embedded.** Same host, booting Elixir, ran
+   `Rext.Renderer.frame/2` and returned the JSON frame.
+3. **Full host works.** `native/macos/host/rext_host` boots the embedded BEAM,
+   starts the rext app with the NIF transport, opens the counter window; the NIF
    receives render frames in-process (logged `Count: 1/2/3`), the window
    registers its pid, and UI events flow back via `enif_send`
-   (`simulate_ui_event` → `{:rect_ui_event, …}` → `handle_event`). Driven over
-   dist with `Rect.Test`.
+   (`simulate_ui_event` → `{:rext_ui_event, …}` → `handle_event`). Driven over
+   dist with `Rext.Test`.
 
 ## The link recipe (macOS, OTP 29 / erts-17.0)
 
@@ -43,7 +43,7 @@ like `pcre2_set_loops_left_8`). Build those from OTP source:
 
 Link (see `host/build.sh`):
 
-    clang++ rect_host.o \
+    clang++ rext_host.o \
       $ERTS/lib/libbeam.a $ERTS/lib/internal/liberts_internal_r.a \
       $ERTS/lib/internal/libethread.a $OTP/usr/lib/libei.a \
       vendor/libepcre.a vendor/libryu.a \
@@ -52,21 +52,21 @@ Link (see `host/build.sh`):
 
 Boot needs env (`ROOTDIR`, `BINDIR`, `PROGNAME=erl`, `EMU=beam`, `HOME`) and an
 erl arg vector with `-root/-bindir`, `-boot start_clean`, `-pa` for elixir +
-logger + rect ebin, `-name/-setcookie` for dist, `-eval Rect.Embedded.start()`.
+logger + rext ebin, `-name/-setcookie` for dist, `-eval Rext.Embedded.start()`.
 `-rdynamic` exports `enif_*` so the dlopen'd NIF resolves them from the host.
 
 ## Transport seam
 
-`Rect.Transport` behaviour with two impls: `Rect.NifBridge` (in-process, this
-host) and `Rect.Bridge` (socket, out-of-process). Window/Renderer/Socket/Test
-are identical across both. Selected by `config :rect, :transport, …`.
+`Rext.Transport` behaviour with two impls: `Rext.NifBridge` (in-process, this
+host) and `Rext.Bridge` (socket, out-of-process). Window/Renderer/Socket/Test
+are identical across both. Selected by `config :rext, :transport, …`.
 
 ## Consequences / follow-ups
 
 - **NIF is dynamic** (`.so` + `-rdynamic`), simpler than mob's iOS static-NIF
   driver-table approach — viable because macOS allows app-loaded dylibs.
 - **GUI host** is the remaining piece: NSApplication on the main thread, BEAM on
-  a background thread, and a `rect_ui_render` hook (weak symbol the host
+  a background thread, and a `rext_ui_render` hook (weak symbol the host
   provides) that hands the JSON frame to the SwiftUI view from `native/macos`.
   The current host is headless (BEAM on main thread) and verified without a
   window; the on-screen render can't be verified from a shell detached from the

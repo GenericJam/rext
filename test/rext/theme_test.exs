@@ -1,7 +1,7 @@
-defmodule Rect.ThemeTest do
+defmodule Rext.ThemeTest do
   use ExUnit.Case, async: true
 
-  alias Rect.Theme
+  alias Rext.Theme
 
   test "color/1 resolves known tokens to hex" do
     assert Theme.color(:primary) == "#7c5cff"

@@ -1,11 +1,11 @@
-defmodule Rect.Theme do
+defmodule Rext.Theme do
   @moduledoc """
   Minimal design-token resolution for the prototype.
 
   The renderer resolves atom-valued color/spacing tokens through this module so
   window code can say `color: :on_surface` instead of a raw hex string. This is
   a deliberately small copy of mob's much larger theme system — enough to prove
-  the token-resolution seam exists on the desktop side. When rect's core is
+  the token-resolution seam exists on the desktop side. When rext's core is
   eventually lifted into a shared package with mob, this is one of the modules
   that merges.
   """

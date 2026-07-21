@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# .githooks/pre-push — rect ecosystem pre-push gate (rect / rect_dev / rect_new).
+# .githooks/pre-push — rext ecosystem pre-push gate (rext / rext_dev / rext_new).
 #
 # Activated per-clone with: git config core.hooksPath .githooks
 # (or run `mix setup`, which does it for you).
@@ -30,7 +30,7 @@ cheap_checks() {
     echo "[pre-push] compile (--warnings-as-errors)..."
     mix compile --warnings-as-errors
 
-    # erlfmt only exists where there's Erlang source (rect has src/).
+    # erlfmt only exists where there's Erlang source (rext has src/).
     if [ -d src ] && mix help erlfmt >/dev/null 2>&1; then
         echo "[pre-push] erlfmt (src/)..."
         mix erlfmt --check src/

@@ -1,14 +1,14 @@
-defmodule Rect.App do
+defmodule Rext.App do
   @moduledoc """
-  Behaviour for a rect application's entry point.
+  Behaviour for a rext application's entry point.
 
   Where mob's `Mob.App` declares mobile navigation (`stack`/`tab_bar`/`drawer`),
-  rect's app declares the set of windows the app opens — the desktop paradigm.
+  rext's app declares the set of windows the app opens — the desktop paradigm.
   Menus are declared here too (stubbed for the prototype; the menu bar is a
   desktop-native concern with no mobile analogue).
 
       defmodule MyApp do
-        use Rect.App
+        use Rext.App
 
         def windows do
           [
@@ -17,7 +17,7 @@ defmodule Rect.App do
         end
       end
 
-  Then `Rect.boot(MyApp)` opens them.
+  Then `Rext.boot(MyApp)` opens them.
   """
 
   @callback windows() :: [{module(), keyword()}]
@@ -27,7 +27,7 @@ defmodule Rect.App do
 
   defmacro __using__(_opts) do
     quote do
-      @behaviour Rect.App
+      @behaviour Rext.App
       def menu, do: []
       defoverridable menu: 0
     end

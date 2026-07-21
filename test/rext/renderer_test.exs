@@ -1,7 +1,7 @@
-defmodule Rect.RendererTest do
+defmodule Rext.RendererTest do
   use ExUnit.Case, async: true
 
-  alias Rect.Renderer
+  alias Rext.Renderer
 
   test "normalize converts types/keys to strings and keeps structure" do
     tree = %{

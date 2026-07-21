@@ -1,24 +1,24 @@
-defmodule Rect.Socket do
+defmodule Rext.Socket do
   @moduledoc """
-  The socket struct threaded through every `Rect.Window` callback.
+  The socket struct threaded through every `Rext.Window` callback.
 
   Holds two things:
 
     * `assigns` — the public data map your `render/1` reads via `assigns.foo`.
-    * `__rect__` — internal framework metadata (window id, window module,
-      title/size, last-rendered tree). Never mutate `__rect__` directly.
+    * `__rext__` — internal framework metadata (window id, window module,
+      title/size, last-rendered tree). Never mutate `__rext__` directly.
 
   This mirrors `Mob.Socket` deliberately — the programming model is identical to
   mob's. What differs is the *paradigm*: mob threads a navigation stack through
   the socket (`push_screen`/`pop_screen`), because mobile shows one screen at a
-  time. Desktop shows many windows at once, so rect's socket carries window
+  time. Desktop shows many windows at once, so rext's socket carries window
   identity/geometry instead, and multi-window is expressed as multiple
-  supervised `Rect.Window` processes rather than a stack.
+  supervised `Rext.Window` processes rather than a stack.
   """
 
   @type t :: %__MODULE__{
           assigns: map(),
-          __rect__: %{
+          __rext__: %{
             window: module() | nil,
             id: String.t(),
             title: String.t(),
@@ -28,10 +28,10 @@ defmodule Rect.Socket do
         }
 
   defstruct assigns: %{},
-            __rect__: %{
+            __rext__: %{
               window: nil,
               id: "main",
-              title: "Rect",
+              title: "Rext",
               size: {480, 360},
               tree: nil
             }
@@ -45,10 +45,10 @@ defmodule Rect.Socket do
   def new(window_module, opts \\ []) do
     %__MODULE__{
       assigns: %{},
-      __rect__: %{
+      __rext__: %{
         window: window_module,
         id: Keyword.get(opts, :id, "main"),
-        title: Keyword.get(opts, :title, "Rect"),
+        title: Keyword.get(opts, :title, "Rext"),
         size: Keyword.get(opts, :size, {480, 360}),
         tree: nil
       }
@@ -88,12 +88,12 @@ defmodule Rect.Socket do
   end
 
   @doc false
-  @spec put_rect(t(), atom(), term()) :: t()
-  def put_rect(%__MODULE__{__rect__: rect} = socket, key, value) do
-    %{socket | __rect__: Map.put(rect, key, value)}
+  @spec put_rext(t(), atom(), term()) :: t()
+  def put_rext(%__MODULE__{__rext__: rext} = socket, key, value) do
+    %{socket | __rext__: Map.put(rext, key, value)}
   end
 
   @doc "The window's stable id string."
   @spec id(t()) :: String.t()
-  def id(%__MODULE__{__rect__: %{id: id}}), do: id
+  def id(%__MODULE__{__rext__: %{id: id}}), do: id
 end

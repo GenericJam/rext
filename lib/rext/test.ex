@@ -1,9 +1,9 @@
-defmodule Rect.Test do
+defmodule Rext.Test do
   @moduledoc """
-  Remote inspection and interaction for a running rect app — the agent harness.
+  Remote inspection and interaction for a running rext app — the agent harness.
 
   Every function takes a `node` (and an optional window `id`, default `"main"`)
-  and operates over Erlang distribution. Connect with `mix rect.connect`, then
+  and operates over Erlang distribution. Connect with `mix rext.connect`, then
   drive from IEx or from an agent via `:rpc.call/4`.
 
   Because the window's state and render tree are authoritative *on the BEAM*
@@ -15,18 +15,18 @@ defmodule Rect.Test do
   This is the desktop counterpart to `Mob.Test`, and on desktop it's simpler and
   more reliable: the connection is local dist with no adb/simctl tunnels.
 
-      node = :"rect_demo@127.0.0.1"
+      node = :"rext_demo@127.0.0.1"
 
-      Rect.Test.window(node)          #=> RectDemo.CounterWindow
-      Rect.Test.assigns(node)         #=> %{count: 0}
-      Rect.Test.tree(node)            #=> %{type: :column, ...}
-      Rect.Test.find(node, "Count")   #=> [{[0], %{...}}]
-      Rect.Test.click(node, :inc)     # drive the Increment button
-      Rect.Test.assigns(node)         #=> %{count: 1}
+      Rext.Test.window(node)          #=> RextDemo.CounterWindow
+      Rext.Test.assigns(node)         #=> %{count: 0}
+      Rext.Test.tree(node)            #=> %{type: :column, ...}
+      Rext.Test.find(node, "Count")   #=> [{[0], %{...}}]
+      Rext.Test.click(node, :inc)     # drive the Increment button
+      Rext.Test.assigns(node)         #=> %{count: 1}
   """
 
   import Kernel, except: [inspect: 2]
-  alias Rect.Window
+  alias Rext.Window
 
   @doc "The window's module."
   @spec window(node(), String.t()) :: module()
@@ -60,7 +60,7 @@ defmodule Rect.Test do
   Synchronous: returns once the event is processed and the window re-rendered, so
   it's safe to read `assigns/2` immediately after.
 
-      Rect.Test.click(node, :increment)
+      Rext.Test.click(node, :increment)
   """
   @spec click(node(), atom() | String.t(), String.t()) :: :ok
   def click(node, tag, id \\ "main") do
@@ -79,7 +79,7 @@ defmodule Rect.Test do
 
   @doc "Whether a native render backend is currently attached."
   @spec connected?(node()) :: boolean()
-  def connected?(node), do: :rpc.call(node, Rect.Bridge, :connected?, [])
+  def connected?(node), do: :rpc.call(node, Rext.Bridge, :connected?, [])
 
   # ── internals ───────────────────────────────────────────────────────────────
 

@@ -1,4 +1,4 @@
-defmodule Rect.Bridge do
+defmodule Rext.Bridge do
   @moduledoc """
   Owns the wire between the BEAM and the render backend.
 
@@ -7,7 +7,7 @@ defmodule Rect.Bridge do
   (`{:packet, 4}` on both ends). The bridge:
 
     * listens and accepts the renderer connection (tolerating reconnects),
-    * receives interaction events and routes them to the owning `Rect.Window`,
+    * receives interaction events and routes them to the owning `Rext.Window`,
     * sends render frames, buffering the latest frame per window so a renderer
       that connects *after* a window first rendered still gets current state.
 
@@ -18,18 +18,18 @@ defmodule Rect.Bridge do
   of keeping the transport isolated here.
 
   Re-entrancy note (see mob's CLAUDE.md, "transport-handler reentrancy"): event
-  routing does a synchronous `Rect.Window.dispatch/3`, and the window's render
+  routing does a synchronous `Rext.Window.dispatch/3`, and the window's render
   path casts back here asynchronously. The cast (never a call) is what keeps the
   bridge from calling into a window that is mid-call into the bridge.
   """
 
   use GenServer
-  @behaviour Rect.Transport
+  @behaviour Rext.Transport
   require Logger
 
   @default_port 8137
 
-  @impl Rect.Transport
+  @impl Rext.Transport
   def available?, do: Process.whereis(__MODULE__) != nil
 
   @doc "The compiled-in default bridge port."
@@ -39,8 +39,8 @@ defmodule Rect.Bridge do
   @doc """
   Resolve the bridge port, highest precedence first:
 
-    1. `RECT_PORT` env var — the CLI path (`mix rect.run --port N` sets it).
-    2. `config :rect, :port, N` — project config.
+    1. `REXT_PORT` env var — the CLI path (`mix rext.run --port N` sets it).
+    2. `config :rext, :port, N` — project config.
     3. the compiled-in default (#{@default_port}).
 
   A conflict on the resolved port still falls back to an ephemeral one at
@@ -48,11 +48,11 @@ defmodule Rect.Bridge do
   """
   @spec resolve_port() :: non_neg_integer()
   def resolve_port do
-    env = System.get_env("RECT_PORT")
+    env = System.get_env("REXT_PORT")
 
     cond do
       is_binary(env) and env != "" -> String.to_integer(env)
-      true -> Application.get_env(:rect, :port) || @default_port
+      true -> Application.get_env(:rext, :port) || @default_port
     end
   end
 
@@ -64,12 +64,12 @@ defmodule Rect.Bridge do
   end
 
   @doc "Register a window process so events for `window_id` route to it."
-  @impl Rect.Transport
+  @impl Rext.Transport
   @spec register(String.t(), pid()) :: :ok
   def register(window_id, pid), do: GenServer.call(__MODULE__, {:register, window_id, pid})
 
   @doc "Push a window's current tree to the render backend (async, ordered)."
-  @impl Rect.Transport
+  @impl Rext.Transport
   @spec render(String.t(), map()) :: :ok
   def render(window_id, tree), do: GenServer.cast(__MODULE__, {:render, window_id, tree})
 
@@ -91,14 +91,14 @@ defmodule Rect.Bridge do
       {:ok, lsock, actual_port} ->
         if actual_port != requested and requested != 0 do
           Logger.warning(
-            "[rect] port #{requested} in use (another rect instance?) — " <>
+            "[rext] port #{requested} in use (another rext instance?) — " <>
               "bridge listening on #{actual_port} instead"
           )
         end
 
         parent = self()
         spawn_link(fn -> accept_loop(lsock, parent) end)
-        Logger.info("[rect] bridge listening on 127.0.0.1:#{actual_port}")
+        Logger.info("[rext] bridge listening on 127.0.0.1:#{actual_port}")
 
         {:ok,
          %{
@@ -119,10 +119,10 @@ defmodule Rect.Bridge do
     end
   end
 
-  # Bind the requested port; on a conflict (another rect instance already holds
+  # Bind the requested port; on a conflict (another rext instance already holds
   # it), fall back to an OS-assigned ephemeral port rather than crashing. The
   # dev launcher reads the actual port back via `port/0`, so the fallback is
-  # transparent to `mix rect.run` and the renderer it spawns.
+  # transparent to `mix rext.run` and the renderer it spawns.
   defp open_listen(port) do
     opts = [:binary, packet: 4, active: false, reuseaddr: true, ip: {127, 0, 0, 1}]
 
@@ -150,7 +150,7 @@ defmodule Rect.Bridge do
 
   @impl true
   def handle_cast({:render, window_id, tree}, state) do
-    frame = Rect.Renderer.frame(window_id, tree)
+    frame = Rext.Renderer.frame(window_id, tree)
     if state.sock, do: :gen_tcp.send(state.sock, frame)
     {:noreply, put_in(state.frames[window_id], frame)}
   end
@@ -158,7 +158,7 @@ defmodule Rect.Bridge do
   @impl true
   def handle_info({:renderer_connected, sock}, state) do
     :inet.setopts(sock, active: true)
-    Logger.info("[rect] render backend connected")
+    Logger.info("[rext] render backend connected")
     # Flush the latest frame for every known window so a late-connecting
     # renderer immediately shows current state.
     for {_id, frame} <- state.frames, do: :gen_tcp.send(sock, frame)
@@ -171,7 +171,7 @@ defmodule Rect.Bridge do
   end
 
   def handle_info({:tcp_closed, _sock}, state) do
-    Logger.info("[rect] render backend disconnected")
+    Logger.info("[rext] render backend disconnected")
     {:noreply, %{state | sock: nil}}
   end
 
@@ -187,16 +187,16 @@ defmodule Rect.Bridge do
   defp route_event(%{"t" => "event", "window" => window_id} = ev, state) do
     case state.windows[window_id] do
       nil ->
-        Logger.warning("[rect] event for unknown window #{inspect(window_id)}")
+        Logger.warning("[rext] event for unknown window #{inspect(window_id)}")
 
       pid ->
         params = Map.take(ev, ["tag", "value"])
-        Rect.Window.dispatch(pid, ev["event"] || "click", params)
+        Rext.Window.dispatch(pid, ev["event"] || "click", params)
     end
   end
 
   defp route_event(%{"t" => "hello"} = hello, _state) do
-    Logger.info("[rect] renderer hello: #{inspect(hello["renderer"])}")
+    Logger.info("[rext] renderer hello: #{inspect(hello["renderer"])}")
   end
 
   defp route_event(_other, _state), do: :ok

@@ -1,12 +1,12 @@
-defmodule Rect.MixProject do
+defmodule Rext.MixProject do
   use Mix.Project
 
   @version "0.1.0"
-  @source_url "https://github.com/genericjam/rect"
+  @source_url "https://github.com/genericjam/rext"
 
   def project do
     [
-      app: :rect,
+      app: :rext,
       version: @version,
       elixir: "~> 1.20",
       start_permanent: Mix.env() == :prod,
@@ -23,7 +23,7 @@ defmodule Rect.MixProject do
   def application do
     [
       extra_applications: [:logger],
-      mod: {Rect.Application, []}
+      mod: {Rext.Application, []}
     ]
   end
 

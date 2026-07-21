@@ -69,8 +69,8 @@ jobs:
       - name: clang-format (host NIF + launcher)
         run: |
           xcrun clang-format --dry-run -Werror \
-            native/macos/host/rect_nif.c \
-            native/macos/host/rect_host.c
+            native/macos/host/rext_nif.c \
+            native/macos/host/rext_host.c
 
       - name: Install swiftlint
         run: brew install swiftlint

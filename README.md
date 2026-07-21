@@ -1,14 +1,14 @@
-# Rect
+# Rext
 
 BEAM-on-desktop UI framework for Elixir — mob's desktop sibling.
 
 > **Status:** Prototype. The programming model and agent harness are verified
 > end-to-end on macOS (SwiftUI render backend over a socket). See
-> `decisions/2026-07-20-rect-prototype-architecture.md`.
+> `decisions/2026-07-20-rext-prototype-architecture.md`.
 
 ## What it is
 
-You write Elixir. A unit of UI is a `Rect.Window` — one supervised GenServer
+You write Elixir. A unit of UI is a `Rext.Window` — one supervised GenServer
 that produces a component tree. The tree is serialized and drawn by a native
 render backend (SwiftUI on macOS; Compose Multiplatform for Windows/Linux is the
 planned path, mirroring mob's SwiftUI + Compose split). Events come back over the
@@ -21,9 +21,9 @@ navigation stack — "another view" is "another window", i.e. another process.
 
 ```elixir
 defmodule MyApp.CounterWindow do
-  use Rect.Window
+  use Rext.Window
 
-  def mount(_params, socket), do: {:ok, Rect.Socket.assign(socket, :count, 0)}
+  def mount(_params, socket), do: {:ok, Rext.Socket.assign(socket, :count, 0)}
 
   def render(assigns) do
     %{type: :column, props: %{gap: :space_lg, padding: :space_xl},
@@ -34,7 +34,7 @@ defmodule MyApp.CounterWindow do
   end
 
   def handle_event("click", %{"tag" => "inc"}, socket),
-    do: {:noreply, Rect.Socket.update(socket, :count, &(&1 + 1))}
+    do: {:noreply, Rext.Socket.update(socket, :count, &(&1 + 1))}
 end
 ```
 
@@ -42,28 +42,28 @@ end
 
 | Package    | Role |
 |------------|------|
-| `rect`     | Runtime library, ships in the app: `Rect.Window`, `Rect.Socket`, `Rect.Renderer`, `Rect.Transport` (+ `Rect.Bridge`/`Rect.NifBridge`), `Rect.Theme`, `Rect.Test`. |
-| `rect_dev` | Dev + agent tooling (never a shipped dependency): `mix rect.run`, `mix rect.connect`, and the MCP server (planned). |
-| `rect_new` | Project generator: `mix rect.new my_app` (emits `.mcp.json` for agent sessions). |
+| `rext`     | Runtime library, ships in the app: `Rext.Window`, `Rext.Socket`, `Rext.Renderer`, `Rext.Transport` (+ `Rext.Bridge`/`Rext.NifBridge`), `Rext.Theme`, `Rext.Test`. |
+| `rext_dev` | Dev + agent tooling (never a shipped dependency): `mix rext.run`, `mix rext.connect`, and the MCP server (planned). |
+| `rext_new` | Project generator: `mix rext.new my_app` (emits `.mcp.json` for agent sessions). |
 
 ## Render transports
 
-The `Rect.Transport` seam supports two backends behind an identical programming
-model (config: `config :rect, :transport, …`):
+The `Rext.Transport` seam supports two backends behind an identical programming
+model (config: `config :rext, :transport, …`):
 
-- **`Rect.NifBridge`** — in-process, the mob-faithful path: a native host binary
+- **`Rext.NifBridge`** — in-process, the mob-faithful path: a native host binary
   owns `main()`, embeds the BEAM (stock OTP's `libbeam.a`, no custom build), and
-  bridges via the `rect_nif` NIF. Built and verified in `native/macos/host`
-  (`build.sh` → `rect_host`); see `decisions/2026-07-20-in-process-nif-host.md`.
-- **`Rect.Bridge`** — out-of-process, a renderer connected over a socket. The
+  bridges via the `rext_nif` NIF. Built and verified in `native/macos/host`
+  (`build.sh` → `rext_host`); see `decisions/2026-07-20-in-process-nif-host.md`.
+- **`Rext.Bridge`** — out-of-process, a renderer connected over a socket. The
   "Port partner" model; also the path to a browser/remote renderer.
 
 ### Render port
 
 The socket bridge's port is resolved highest-precedence-first:
 
-1. **CLI** — `mix rect.run --port 9000` (sets `RECT_PORT` for that run)
-2. **Project config** — `config :rect, :port, 9000`
+1. **CLI** — `mix rext.run --port 9000` (sets `REXT_PORT` for that run)
+2. **Project config** — `config :rext, :port, 9000`
 3. **Default** — `8137`
 
 If the resolved port is already in use, the bridge logs a warning and falls back
@@ -78,18 +78,18 @@ still connects.)
 (cd native/macos && ./build.sh)
 
 # boot a named node with the counter window + renderer
-elixir --name rect_demo@127.0.0.1 --cookie rect_secret -S mix run --no-halt dev/demo.exs
+elixir --name rext_demo@127.0.0.1 --cookie rext_secret -S mix run --no-halt dev/demo.exs
 ```
 
 Then, from another terminal, drive it as an agent would — over dist, no UI:
 
 ```elixir
-node = :"rect_demo@127.0.0.1"
+node = :"rext_demo@127.0.0.1"
 Node.connect(node)
-Rect.Test.window(node)     #=> Rect.Examples.CounterWindow
-Rect.Test.assigns(node)    #=> %{count: 0}
-Rect.Test.click(node, :inc)
-Rect.Test.assigns(node)    #=> %{count: 1}
+Rext.Test.window(node)     #=> Rext.Examples.CounterWindow
+Rext.Test.assigns(node)    #=> %{count: 0}
+Rext.Test.click(node, :inc)
+Rext.Test.assigns(node)    #=> %{count: 1}
 ```
 
 > The native window renders in your GUI session. If you launch the renderer from
@@ -98,7 +98,7 @@ Rect.Test.assigns(node)    #=> %{count: 1}
 
 ## Agent harness
 
-`Rect.Test` is the front door for agent-driven development, over local dist:
+`Rext.Test` is the front door for agent-driven development, over local dist:
 `window/1`, `assigns/1`, `tree/1`, `find/2`, `click/2`, `input/3`, `connected?/1`.
 Window state and the render tree are authoritative on the BEAM, so the whole
 logical harness works with or without a native renderer attached.

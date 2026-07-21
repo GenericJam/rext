@@ -1,8 +1,8 @@
-defmodule Rect.BridgeTest do
+defmodule Rext.BridgeTest do
   use ExUnit.Case, async: false
 
-  alias Rect.Examples.CounterWindow
-  alias Rect.Window
+  alias Rext.Examples.CounterWindow
+  alias Rext.Window
 
   # Full socket-transport round-trip against the running bridge: a raw TCP
   # client (matching the Swift renderer's 4-byte framing) receives a render
@@ -10,7 +10,7 @@ defmodule Rect.BridgeTest do
 
   setup do
     {:ok, pid} = Window.start_link(CounterWindow, %{}, id: "bridgetest", name: :win_bridge)
-    port = Rect.Bridge.port()
+    port = Rext.Bridge.port()
 
     {:ok, sock} =
       :gen_tcp.connect(~c"127.0.0.1", port, [:binary, packet: 4, active: false])
@@ -36,27 +36,27 @@ defmodule Rect.BridgeTest do
     assert eventually(fn -> Window.get_socket(pid).assigns.count == 1 end)
   end
 
-  test "resolve_port/0 precedence: RECT_PORT env > config > default" do
-    orig_env = System.get_env("RECT_PORT")
-    orig_cfg = Application.get_env(:rect, :port)
+  test "resolve_port/0 precedence: REXT_PORT env > config > default" do
+    orig_env = System.get_env("REXT_PORT")
+    orig_cfg = Application.get_env(:rext, :port)
 
     on_exit(fn ->
-      if orig_env, do: System.put_env("RECT_PORT", orig_env), else: System.delete_env("RECT_PORT")
+      if orig_env, do: System.put_env("REXT_PORT", orig_env), else: System.delete_env("REXT_PORT")
 
       if is_nil(orig_cfg),
-        do: Application.delete_env(:rect, :port),
-        else: Application.put_env(:rect, :port, orig_cfg)
+        do: Application.delete_env(:rext, :port),
+        else: Application.put_env(:rext, :port, orig_cfg)
     end)
 
-    System.delete_env("RECT_PORT")
-    Application.delete_env(:rect, :port)
-    assert Rect.Bridge.resolve_port() == Rect.Bridge.default_port()
+    System.delete_env("REXT_PORT")
+    Application.delete_env(:rext, :port)
+    assert Rext.Bridge.resolve_port() == Rext.Bridge.default_port()
 
-    Application.put_env(:rect, :port, 4321)
-    assert Rect.Bridge.resolve_port() == 4321
+    Application.put_env(:rext, :port, 4321)
+    assert Rext.Bridge.resolve_port() == 4321
 
-    System.put_env("RECT_PORT", "5678")
-    assert Rect.Bridge.resolve_port() == 5678
+    System.put_env("REXT_PORT", "5678")
+    assert Rext.Bridge.resolve_port() == 5678
   end
 
   test "a busy port falls back to an ephemeral one instead of crashing the app" do
@@ -64,7 +64,7 @@ defmodule Rect.BridgeTest do
     {:ok, busy} = :inet.port(blocker)
     on_exit(fn -> :gen_tcp.close(blocker) end)
 
-    {:ok, pid} = Rect.Bridge.start_link(port: busy, name: :bridge_fallback_test)
+    {:ok, pid} = Rext.Bridge.start_link(port: busy, name: :bridge_fallback_test)
     on_exit(fn -> if Process.alive?(pid), do: GenServer.stop(pid) end)
 
     assert Process.alive?(pid)

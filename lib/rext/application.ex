@@ -1,4 +1,4 @@
-defmodule Rect.Application do
+defmodule Rext.Application do
   @moduledoc false
   use Application
 
@@ -8,15 +8,15 @@ defmodule Rect.Application do
     # mode the in-process host owns the render path, so no TCP listener runs.
     children =
       transport_children() ++
-        [{DynamicSupervisor, name: Rect.WindowSupervisor, strategy: :one_for_one}]
+        [{DynamicSupervisor, name: Rext.WindowSupervisor, strategy: :one_for_one}]
 
-    opts = [strategy: :one_for_one, name: Rect.Supervisor]
+    opts = [strategy: :one_for_one, name: Rext.Supervisor]
     Supervisor.start_link(children, opts)
   end
 
   defp transport_children do
-    case Application.get_env(:rect, :transport, Rect.Bridge) do
-      Rect.Bridge -> [{Rect.Bridge, port: Rect.Bridge.resolve_port()}]
+    case Application.get_env(:rext, :transport, Rext.Bridge) do
+      Rext.Bridge -> [{Rext.Bridge, port: Rext.Bridge.resolve_port()}]
       _ -> []
     end
   end

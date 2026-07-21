@@ -1,20 +1,20 @@
-defmodule Rect.SocketTest do
+defmodule Rext.SocketTest do
   use ExUnit.Case, async: true
 
-  alias Rect.Socket
+  alias Rext.Socket
 
   test "new/2 sets window metadata from opts" do
     s = Socket.new(SomeWindow, id: "w1", title: "Hi", size: {800, 600})
-    assert s.__rect__.window == SomeWindow
+    assert s.__rext__.window == SomeWindow
     assert Socket.id(s) == "w1"
-    assert s.__rect__.title == "Hi"
-    assert s.__rect__.size == {800, 600}
+    assert s.__rext__.title == "Hi"
+    assert s.__rext__.size == {800, 600}
   end
 
   test "new/2 applies defaults" do
     s = Socket.new(SomeWindow)
     assert Socket.id(s) == "main"
-    assert s.__rect__.title == "Rect"
+    assert s.__rext__.title == "Rext"
   end
 
   test "assign/3 and assign/2 write into assigns" do
@@ -38,9 +38,9 @@ defmodule Rect.SocketTest do
     assert s2.assigns.y == 7
   end
 
-  test "put_rect/3 updates internal metadata without touching assigns" do
-    s = Socket.new(W) |> Socket.assign(:a, 1) |> Socket.put_rect(:tree, %{type: :text})
-    assert s.__rect__.tree == %{type: :text}
+  test "put_rext/3 updates internal metadata without touching assigns" do
+    s = Socket.new(W) |> Socket.assign(:a, 1) |> Socket.put_rext(:tree, %{type: :text})
+    assert s.__rext__.tree == %{type: :text}
     assert s.assigns == %{a: 1}
   end
 end
