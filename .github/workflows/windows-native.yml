@@ -1,0 +1,31 @@
+name: windows-native
+
+# Builds the WinForms native renderer on a Windows runner. WinForms is
+# Windows-only, so this is where its C# is verified (it can't compile on the
+# macOS dev box). Compile only — the window's visual correctness is a human's
+# pass on a real display (see PLAN.md).
+
+on:
+  push:
+    branches: [master]
+    paths: ['native/windows/**', '.github/workflows/windows-native.yml']
+  pull_request:
+    paths: ['native/windows/**', '.github/workflows/windows-native.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: windows-native-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: native/windows
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '8.0.x'
+      - run: dotnet build -c Release
