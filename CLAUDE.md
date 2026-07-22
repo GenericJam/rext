@@ -31,7 +31,7 @@ process.
 | Repo | Role |
 |------|------|
 | `rext` (this repo) | Runtime library, ships in the app. |
-| `rext_dev` | Dev + agent tooling: `mix rext.run`, `mix rext.connect`, MCP (planned). Never a shipped dependency. |
+| `rext_dev` | Dev + agent tooling: `mix rext.run`, `mix rext.connect`. Never a shipped dependency. |
 | `rext_new` | Project generator: `mix rext.new my_app`. |
 | `rext_demo` | Proof-of-concept app (sibling; multi-window). |
 

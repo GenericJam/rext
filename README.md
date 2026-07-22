@@ -49,8 +49,8 @@ end
 | Package    | Role |
 |------------|------|
 | `rext`     | Runtime library, ships in the app: `Rext.Window`, `Rext.Socket`, `Rext.Renderer`, `Rext.Transport` (+ `Rext.Bridge`/`Rext.NifBridge`), `Rext.Theme`, `Rext.Test`. |
-| `rext_dev` | Dev + agent tooling (never a shipped dependency): `mix rext.run`, `mix rext.connect`, and the MCP server (planned). |
-| `rext_new` | Project generator: `mix rext.new my_app` (emits `.mcp.json` for agent sessions). |
+| `rext_dev` | Dev + agent tooling (never a shipped dependency): `mix rext.run`, `mix rext.connect`. |
+| `rext_new` | Project generator: `mix rext.new my_app`. |
 
 ## Render transports
 

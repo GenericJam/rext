@@ -103,7 +103,10 @@ Mitigation: **bundle a font** with the renderer so text doesn't vary by OS.
    the native feel needs to be more modern.
 4. **Per-platform agent visual verification** — the harness upgrade above (the
    investment that removes the human from the pixel-checking loop).
-5. **rext_mcp** — MCP server fronting `Rext.Test` so agents get typed tools.
+5. ~~**rext_mcp**~~ — **not pursued.** Agents drive rext via `mix rext.connect` +
+   `Rext.Test` over dist (same as mob in practice). An MCP server would only add
+   value for a non-shell MCP client (Claude Desktop/Cursor/etc.); revisit if that
+   need appears. See `decisions/2026-07-22-skip-rext-mcp.md`.
 6. **In-process NIF host, production** — finish the embedded-BEAM host beyond the
    headless proof (macOS first).
 
