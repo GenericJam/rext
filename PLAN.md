@@ -91,12 +91,16 @@ Mitigation: **bundle a font** with the renderer so text doesn't vary by OS.
 
 ## Roadmap
 
-1. **Protocol spec** — `guides/render_protocol.md` (the contract all five bind to). ← next
-2. **Compose Desktop renderer** — `native/compose`, Kotlin + Gradle + Compose MP,
-   bundled font. The universal baseline; validate on macOS, then Linux.
-3. **Native backends per platform** — SwiftUI (done, reference); WinUI when there's
-   a Windows env to build/verify in.
-4. **Per-platform agent visual verification** — the harness upgrade above.
+1. ✅ **Protocol spec** — `guides/render_protocol.md` (the contract all five bind to).
+2. ✅ **Compose Desktop renderer** — `native/compose`, Kotlin + Compose MP, Inter
+   bundled. CI-green building on Linux/Windows/macOS. **Visually verified on a real
+   display: macOS ✅ and Linux ✅** (Linux being the whole point — it's Compose-only
+   there). The "validate on macOS → transfers to Linux" thesis held; the bundled
+   font kept text consistent. Windows visual pass still pending (needs a Windows box).
+3. **Native backends per platform** — SwiftUI (built, reference; window verified on
+   macOS); WinUI when there's a Windows env to build/verify in. ← next native work
+4. **Per-platform agent visual verification** — the harness upgrade above (the
+   investment that removes the human from the pixel-checking loop).
 5. **rext_mcp** — MCP server fronting `Rext.Test` so agents get typed tools.
 6. **In-process NIF host, production** — finish the embedded-BEAM host beyond the
    headless proof (macOS first).
