@@ -2,18 +2,24 @@
 
 BEAM-on-desktop UI framework for Elixir — mob's desktop sibling.
 
-> **Status:** Prototype. The programming model and agent harness are verified
-> end-to-end on macOS (SwiftUI render backend over a socket). See
-> `decisions/2026-07-20-rext-prototype-architecture.md`.
+> **Status:** Prototype, actively built. Programming model + agent harness proven;
+> a **Compose Desktop** baseline renderer runs on macOS/Windows/Linux (visually
+> verified on macOS + Linux), with **native** backends alongside it: SwiftUI
+> (macOS, verified) and WinForms (Windows, CI-compiling). See `PLAN.md`.
 
 ## What it is
 
 You write Elixir. A unit of UI is a `Rext.Window` — one supervised GenServer
 that produces a component tree. The tree is serialized and drawn by a native
-render backend (SwiftUI on macOS; Compose Multiplatform for Windows/Linux is the
-planned path, mirroring mob's SwiftUI + Compose split). Events come back over the
-same channel. Because window state lives on the BEAM, you connect over Erlang
-distribution to inspect and drive a running app — no rebuild, no restart.
+render backend, and events come back over the same channel. Because window state
+lives on the BEAM, you connect over Erlang distribution to inspect and drive a
+running app — no rebuild, no restart.
+
+The renderer is pluggable (see `guides/render_protocol.md`). Today: a **Compose
+Multiplatform** baseline for consistent styling everywhere (`native/compose`),
+plus opt-in **native** backends — **SwiftUI** on macOS (`native/macos`) and
+**WinForms** on Windows (`native/windows`). The value proposition and the
+five-backend strategy (native feel + BEAM + agentic coding) live in `PLAN.md`.
 
 This is mob's programming model, committed to desktop paradigm and concerns:
 the unit is a **window**, apps run **many** at once, and there's no mobile

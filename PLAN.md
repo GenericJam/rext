@@ -30,7 +30,7 @@ additionally get a **native premium backend**. Linux is Compose-only (no single
 | Platform | Baseline (default) | Native (opt-in) |
 |----------|--------------------|-----------------|
 | macOS    | Compose Desktop    | SwiftUI ✅ built |
-| Windows  | Compose Desktop    | WinUI (future)  |
+| Windows  | Compose Desktop    | WinForms ✅ built (WinUI/Fluent a later upgrade) |
 | Linux    | Compose Desktop    | — |
 
 So five backend targets: `{Compose-mac, Compose-win, Compose-linux, SwiftUI-mac,
@@ -97,8 +97,10 @@ Mitigation: **bundle a font** with the renderer so text doesn't vary by OS.
    display: macOS ✅ and Linux ✅** (Linux being the whole point — it's Compose-only
    there). The "validate on macOS → transfers to Linux" thesis held; the bundled
    font kept text consistent. Windows visual pass still pending (needs a Windows box).
-3. **Native backends per platform** — SwiftUI (built, reference; window verified on
-   macOS); WinUI when there's a Windows env to build/verify in. ← next native work
+3. **Native backends per platform** — SwiftUI (built; window verified on macOS)
+   and WinForms (`native/windows`, built + CI-compiling on windows-latest; Windows
+   visual pass pending). A Fluent/WinUI 3 upgrade for Windows is a later option if
+   the native feel needs to be more modern.
 4. **Per-platform agent visual verification** — the harness upgrade above (the
    investment that removes the human from the pixel-checking loop).
 5. **rext_mcp** — MCP server fronting `Rext.Test` so agents get typed tools.
