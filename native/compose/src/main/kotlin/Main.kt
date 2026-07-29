@@ -20,17 +20,24 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.platform.Font
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
+import java.awt.Taskbar
 import java.io.DataInputStream
 import java.io.DataOutputStream
+import java.io.File
 import java.net.Socket
+import javax.imageio.ImageIO
 import kotlin.concurrent.thread
 import kotlin.system.exitProcess
+import org.jetbrains.skia.Image
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -140,16 +147,54 @@ fun NodeView(node: RNode, bridge: Bridge) {
   }
 }
 
+// Optional per-app branding: REXT_ICON points at any image file loadable by
+// Skia (PNG/JPEG/etc). No default — an app that doesn't set it gets the
+// platform's default window icon, same as before this existed.
+fun loadIcon(path: String?): Painter? {
+  if (path.isNullOrBlank()) return null
+  return try {
+    BitmapPainter(Image.makeFromEncoded(File(path).readBytes()).toComposeImageBitmap())
+  } catch (e: Exception) {
+    System.err.println("[rext] REXT_ICON=$path failed to load: ${e.message}")
+    null
+  }
+}
+
+// AWT's Frame.setIconImage (what Window(icon=) sets under the hood) covers
+// the title-bar/taskbar icon on Linux and Windows, but macOS ignores it for
+// the Dock — that needs java.awt.Taskbar.setIconImage explicitly. Harmless
+// no-op on platforms without Taskbar support.
+fun setDockIcon(path: String?) {
+  if (path.isNullOrBlank()) return
+  try {
+    if (Taskbar.isTaskbarSupported()) {
+      val taskbar = Taskbar.getTaskbar()
+      if (taskbar.isSupported(Taskbar.Feature.ICON_IMAGE)) {
+        taskbar.iconImage = ImageIO.read(File(path))
+      }
+    }
+  } catch (e: Exception) {
+    System.err.println("[rext] REXT_ICON=$path dock icon failed: ${e.message}")
+  }
+}
+
 fun main() {
   val port = (System.getenv("REXT_PORT") ?: "8137").toInt()
   val target = System.getenv("REXT_WINDOW") ?: "main"
+  val iconPath = System.getenv("REXT_ICON")
+  val icon = loadIcon(iconPath)
+  setDockIcon(iconPath)
   val bridge = Bridge(port, target)
   bridge.start()
 
   application {
     // Closing the window exits the app; the dropped socket then halts the BEAM
     // under `mix rext.run` (see PLAN.md lifecycle).
-    Window(onCloseRequest = ::exitApplication, title = target.replaceFirstChar { it.uppercase() }) {
+    Window(
+      onCloseRequest = ::exitApplication,
+      title = target.replaceFirstChar { it.uppercase() },
+      icon = icon,
+    ) {
       val current = bridge.root.value
       if (current != null) NodeView(current, bridge) else Text("Waiting for BEAM…")
     }
