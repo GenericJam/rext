@@ -12,13 +12,22 @@
 -nifs([render/2, register_window/1, simulate_ui_event/3]).
 -on_load(on_load/0).
 
+%% Loading is best-effort: apps that never select the NifBridge transport
+%% (the socket Bridge is the default) still preload every module at boot in a
+%% release's default `embedded` mode, so a missing .so/.dll must not be fatal —
+%% only crash if a NIF is actually called (via the `nif_not_loaded` fallback
+%% clauses below).
 on_load() ->
     Path =
         case os:getenv("REXT_NIF_PATH") of
             false -> "rext_nif";
             P -> P
         end,
-    erlang:load_nif(Path, 0).
+    case erlang:load_nif(Path, 0) of
+        ok -> ok;
+        {error, {load_failed, _}} -> ok;
+        {error, Reason} -> {error, Reason}
+    end.
 
 %% Push a rendered frame (JSON binary) for a window to the native UI.
 render(_WindowId, _Json) -> erlang:nif_error(nif_not_loaded).
