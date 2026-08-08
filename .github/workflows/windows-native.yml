@@ -53,11 +53,29 @@ jobs:
       - name: Resolve OTP/Elixir paths (portable across setup-beam's install layout)
         id: paths
         shell: pwsh
+        # elixir.bat is a batch wrapper; PowerShell invoking it with inline -e
+        # code containing parens breaks cmd.exe's own command-line parsing
+        # ("() was unexpected at this time.") -- writing the snippet to a file
+        # instead sidesteps that class of quoting bug entirely. Must be
+        # written via [System.IO.File]::WriteAllText, not Out-File -- pwsh's
+        # "utf8" encoding still means UTF-8-with-BOM, and Elixir chokes on a
+        # leading BOM ("unexpected token: ... U+FEFF").
         run: |
-          $erlRoot = (elixir -e "IO.write(:code.root_dir())").Trim() -replace '\\', '/'
-          $ertsVsn = (elixir -e "IO.write(:erlang.system_info(:version))").Trim()
-          $elixirEbin = (elixir -e "IO.write(:code.lib_dir(:elixir, :ebin))").Trim() -replace '\\', '/'
-          $loggerEbin = (elixir -e "IO.write(:code.lib_dir(:logger, :ebin))").Trim() -replace '\\', '/'
+          $script = @'
+          IO.puts("ERL_ROOT=" <> to_string(:code.root_dir()))
+          IO.puts("ERTS_VSN=" <> to_string(:erlang.system_info(:version)))
+          IO.puts("ELIXIR_EBIN=" <> to_string(:code.lib_dir(:elixir, :ebin)))
+          IO.puts("LOGGER_EBIN=" <> to_string(:code.lib_dir(:logger, :ebin)))
+          '@
+          [System.IO.File]::WriteAllText("$PWD\resolve_paths.exs", $script)
+          $out = elixir resolve_paths.exs
+          Remove-Item "$PWD\resolve_paths.exs"
+
+          $erlRoot = (($out | Select-String '^ERL_ROOT=').ToString() -replace '^ERL_ROOT=', '') -replace '\\', '/'
+          $ertsVsn = ($out | Select-String '^ERTS_VSN=').ToString() -replace '^ERTS_VSN=', ''
+          $elixirEbin = (($out | Select-String '^ELIXIR_EBIN=').ToString() -replace '^ELIXIR_EBIN=', '') -replace '\\', '/'
+          $loggerEbin = (($out | Select-String '^LOGGER_EBIN=').ToString() -replace '^LOGGER_EBIN=', '') -replace '\\', '/'
+
           "erl_root=$erlRoot" >> $env:GITHUB_OUTPUT
           "erts_bin=$erlRoot/erts-$ertsVsn/bin" >> $env:GITHUB_OUTPUT
           "boot=$erlRoot/bin/start_clean" >> $env:GITHUB_OUTPUT
@@ -85,7 +103,7 @@ jobs:
             -RedirectStandardOutput "host.out.log" -RedirectStandardError "host.err.log"
           Start-Sleep -Seconds 5
 
-          @'
+          $check = @'
           node = :"rext_host@127.0.0.1"
           true = Node.connect(node)
           Rext.Examples.CounterWindow = :rpc.call(node, Rext.Test, :window, [node])
@@ -94,7 +112,10 @@ jobs:
           Process.sleep(300)
           %{count: 1} = :rpc.call(node, Rext.Test, :assigns, [node])
           IO.puts("[nif_host CI check] boot + render + enif_send round trip OK")
-          '@ | Out-File -Encoding utf8 ci_check_nif_host.exs
+          '@
+          # WriteAllText, not Out-File -Encoding utf8: that still means
+          # UTF-8-with-BOM in PowerShell, and Elixir chokes on a leading BOM.
+          [System.IO.File]::WriteAllText("$PWD\ci_check_nif_host.exs", $check)
 
           try {
             elixir --name ci_checker@127.0.0.1 --cookie rext_secret -S mix run ci_check_nif_host.exs
