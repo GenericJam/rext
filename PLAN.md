@@ -127,6 +127,51 @@ Mitigation: **bundle a font** with the renderer so text doesn't vary by OS.
    `enif_send`, driven over dist with `Rext.Test`. GUI wiring (a real WinForms
    window, not just logged frames) is the remaining piece — same open
    state as macOS's own GUI host.
+7. **Distribution: cold install + hot update** — scoped, not yet built. No
+   research risk left here; see below.
+
+## Distribution — cold install + hot update (scoped 2026-08-07)
+
+Shipping an app to end users splits into two tiers that don't share a mechanism:
+
+- **Cold path** (new install, or any update touching native code — the
+  renderer, the NIF, an ERTS bump): a conventional installer. **Inno Setup**
+  is the pick — a plain-text `.iss` script compiled via a CLI (`ISCC.exe`), no
+  GUI step, matching the "basic on purpose" ethos `native/windows/README.md`
+  already states for WinForms itself. Payload is whatever `mix rext.release`
+  already produces (release + renderer + launcher); the installer's uninstall
+  step needs to run the release's `stop` command first, or it can orphan a
+  running `erl.exe`. WiX/MSI is the fallback if Group Policy / enterprise
+  deployment ever becomes a real requirement — not needed now. Not yet built.
+- **Hot path** (pure BEAM code changes, no restart): OTP's own release-handling
+  machinery — `.appup` → `systools:make_relup` → an upgrade tarball → the
+  running node's `release_handler` (unpack → dry-run check → install → make
+  permanent). `mix release` already produces the upgrade tarball once an
+  appup exists for a version bump; none of this needs custom infrastructure
+  to *work*, only to be *driven*: a small OTA module (ships in the app, not
+  `rext_dev` — this runs in production) that checks a version manifest,
+  downloads and **signature-verifies** the tarball (this is code executing
+  inside a live VM — an unverified download here is arbitrary code execution,
+  not just a corrupted file), applies it, and health-checks before making it
+  permanent so a bad upgrade reverts on next cold start instead of sticking.
+  Not yet built.
+
+**Explicit non-goal: rext facilitates the hot-update *mechanism*, not appup
+*authoring*.** Writing (or generating) correct `.appup` files for a given
+app's stateful code changes, and standing up the manifest/tarball server that
+hosts them, is the app author's problem to solve on their own infrastructure —
+same way `rext` doesn't tell you where your `Rext.Window` state comes from.
+The trivial case (a changed module with no stateful shape change — most
+`Rext.Window` callback edits) is mechanical enough that a generator diffing
+compiled `.beam` files between two versions could cover it later, but that's
+an optional convenience on top, not a blocker: the underlying pipeline
+(`appup` → `relup` → tarball → `release_handler`) is standard, well-proven OTP
+machinery, independent of who or what authors the appup.
+
+**What stays out of the hot path, permanently, not just "for now":** anything
+that's an OS-level file the process has open — the renderer `.exe`, the NIF
+`.dll`, ERTS itself. Windows won't let you overwrite a loaded DLL out from
+under a running process the way Unix will; those changes need the cold path.
 
 ## Parallel-hardware / multi-agent model
 
