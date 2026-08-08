@@ -33,12 +33,37 @@
 typedef void (*erl_start_fn)(int, char **);
 typedef void (*sys_primitive_init_fn)(HMODULE);
 
+// erl_start's own distribution init doesn't auto-spawn epmd on Windows the
+// way the normal erl.exe/erlexec.dll launch chain does (that's the wrapper
+// we bypass entirely by calling erl_start ourselves) -- without this,
+// "-name" fails outright ("Protocol 'inet_tcp': register/listen error:
+// econnrefused") on any machine that doesn't already happen to have an epmd
+// from a prior run, and the whole boot dies. Safe to always attempt: epmd
+// detects an already-bound port 4369 and exits quietly if one's running.
+static void ensure_epmd_running(void) {
+    char epmd_path[MAX_PATH];
+    snprintf(epmd_path, sizeof(epmd_path), "%s\\epmd.exe", REXT_ERTS_BIN);
+
+    STARTUPINFOA si = {sizeof(si)};
+    PROCESS_INFORMATION pi;
+    if (CreateProcessA(epmd_path, NULL, NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi)) {
+        CloseHandle(pi.hThread);
+        CloseHandle(pi.hProcess);
+    } else {
+        fprintf(stderr, "[rext_host] CreateProcess(%s) failed: %lu (continuing anyway)\n", epmd_path,
+                GetLastError());
+    }
+    Sleep(500);
+}
+
 int main(void) {
     _putenv_s("ROOTDIR", REXT_ERL_ROOT);
     _putenv_s("BINDIR", REXT_ERTS_BIN);
     _putenv_s("PROGNAME", "erl");
     _putenv_s("EMU", "beam");
     _putenv_s("REXT_NIF_PATH", REXT_NIF_PATH);
+
+    ensure_epmd_running();
 
     HMODULE beam = LoadLibraryA(REXT_BEAM_DLL);
     if (!beam) {

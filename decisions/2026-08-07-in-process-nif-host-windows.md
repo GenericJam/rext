@@ -68,6 +68,27 @@ exactly what `erl.exe`'s own launch path does implicitly (it goes through
 launcher has to replicate it explicitly. No Unix analogue: Unix has no
 resource-section concept, so this entire class of bug can't occur there.
 
+## A second gotcha, found by CI on a genuinely cold machine: epmd
+
+`-name` distribution failed outright — `Protocol 'inet_tcp': register/listen
+error: econnrefused`, then the whole boot dies — on the GitHub Actions runner,
+despite working every time in local dev. The difference: local dev already had
+an `epmd.exe` running continuously from hours of prior testing; the CI runner
+had never run anything Erlang-related before. `erl.exe`'s normal launch chain
+(`erlexec.dll`) auto-spawns `epmd.exe` if none is listening on port 4369 —
+that's implicit launcher behavior our host bypasses entirely by calling
+`erl_start` directly, same category of gap as `sys_primitive_init` above.
+Reproduced locally by explicitly killing `epmd.exe` first (confirms it's a
+first-boot problem, not CI-specific).
+
+Fixed in `rext_host.c`: `CreateProcessA` the `epmd.exe` sitting next to
+`beam.smp.dll` (same `REXT_ERTS_BIN` dir), before calling `erl_start`. Safe to
+always attempt — epmd detects an already-bound port and exits quietly if one's
+already running, so this doesn't conflict with dev machines that already have
+one. A short fixed `Sleep(500)` covers the bind race; no retry-connect loop
+built (epmd binds near-instantly in practice, and this proof is headless-only
+so far — worth revisiting if it's ever flaky in the wild).
+
 ## The recipe (Windows, OTP 29 / erts-17.0.5)
 
 No custom OTP build, no vendored artifacts — beam.smp.dll already has
