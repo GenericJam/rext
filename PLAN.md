@@ -112,7 +112,21 @@ Mitigation: **bundle a font** with the renderer so text doesn't vary by OS.
    value for a non-shell MCP client (Claude Desktop/Cursor/etc.); revisit if that
    need appears. See `decisions/2026-07-22-skip-rext-mcp.md`.
 6. **In-process NIF host, production** — finish the embedded-BEAM host beyond the
-   headless proof (macOS first).
+   headless proof. ✅ **Windows headless proof done too**
+   (`native/windows/host`, `decisions/2026-08-07-in-process-nif-host-windows.md`):
+   `erl_start` ported cleanly from macOS's recipe — dynamically resolved from
+   `beam.smp.dll` (no custom OTP build needed, and *less* linking than macOS
+   since the DLL is fully self-contained), `rext_nif.c` builds for Windows
+   **unchanged** (erl_nif.h's function-pointer NIF ABI needs no host-export
+   trick the way Unix's flat symbol table does). One Windows-only gotcha with
+   no Unix analogue: `sys_primitive_init(beam_handle)` must run before
+   `erl_start` or boot crashes (`No ERLANG_DICT resource`) — Windows stores
+   preloaded modules as a PE resource, and needs the DLL told its own handle
+   before it can find its own resource section. Verified headless, same as
+   where macOS started: NIF receives render frames, events flow back via
+   `enif_send`, driven over dist with `Rext.Test`. GUI wiring (a real WinForms
+   window, not just logged frames) is the remaining piece — same open
+   state as macOS's own GUI host.
 
 ## Parallel-hardware / multi-agent model
 

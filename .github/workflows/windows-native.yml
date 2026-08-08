@@ -4,6 +4,11 @@ name: windows-native
 # Windows-only, so this is where its C# is verified (it can't compile on the
 # macOS dev box). Compile only — the window's visual correctness is a human's
 # pass on a real display (see PLAN.md).
+#
+# Also boots + drives the in-process NIF host (native/windows/host). Unlike
+# the macOS host, this one needs no GUI session to verify — it's headless by
+# design (see decisions/2026-08-07-in-process-nif-host-windows.md) — so CI can
+# actually run it end-to-end, not just build-check it.
 
 on:
   push:
@@ -29,3 +34,72 @@ jobs:
         with:
           dotnet-version: '8.0.x'
       - run: dotnet build -c Release
+
+  nif_host:
+    name: In-process NIF host (boot + drive over dist)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: '1.20'
+          otp-version: '29'
+      - name: Install MinGW-w64
+        run: choco install mingw -y --no-progress
+
+      - run: mix deps.get
+      - run: mix compile
+
+      - name: Resolve OTP/Elixir paths (portable across setup-beam's install layout)
+        id: paths
+        shell: pwsh
+        run: |
+          $erlRoot = (elixir -e "IO.write(:code.root_dir())").Trim() -replace '\\', '/'
+          $ertsVsn = (elixir -e "IO.write(:erlang.system_info(:version))").Trim()
+          $elixirEbin = (elixir -e "IO.write(:code.lib_dir(:elixir, :ebin))").Trim() -replace '\\', '/'
+          $loggerEbin = (elixir -e "IO.write(:code.lib_dir(:logger, :ebin))").Trim() -replace '\\', '/'
+          "erl_root=$erlRoot" >> $env:GITHUB_OUTPUT
+          "erts_bin=$erlRoot/erts-$ertsVsn/bin" >> $env:GITHUB_OUTPUT
+          "boot=$erlRoot/bin/start_clean" >> $env:GITHUB_OUTPUT
+          "elixir_ebin=$elixirEbin" >> $env:GITHUB_OUTPUT
+          "logger_ebin=$loggerEbin" >> $env:GITHUB_OUTPUT
+
+      - name: Build the in-process host
+        working-directory: native/windows/host
+        shell: pwsh
+        env:
+          REXT_ERL_ROOT: ${{ steps.paths.outputs.erl_root }}
+          REXT_ERTS_BIN: ${{ steps.paths.outputs.erts_bin }}
+          REXT_BOOT: ${{ steps.paths.outputs.boot }}
+          REXT_ELIXIR_EBIN: ${{ steps.paths.outputs.elixir_ebin }}
+          REXT_LOGGER_EBIN: ${{ steps.paths.outputs.logger_ebin }}
+        run: |
+          $mingwBin = (Get-ChildItem "C:\ProgramData\mingw64" -Directory | Select-Object -First 1).FullName + "\bin"
+          $env:PATH = "$mingwBin;$env:PATH"
+          .\build.ps1
+
+      - name: Boot the host and drive it over dist (fails loud on any mismatch)
+        shell: pwsh
+        run: |
+          $proc = Start-Process -FilePath "native\windows\host\rext_host.exe" -PassThru `
+            -RedirectStandardOutput "host.out.log" -RedirectStandardError "host.err.log"
+          Start-Sleep -Seconds 5
+
+          @'
+          node = :"rext_host@127.0.0.1"
+          true = Node.connect(node)
+          Rext.Examples.CounterWindow = :rpc.call(node, Rext.Test, :window, [node])
+          %{count: 0} = :rpc.call(node, Rext.Test, :assigns, [node])
+          :ok = :rpc.call(node, :rext_nif, :simulate_ui_event, ["main", "click", "inc"])
+          Process.sleep(300)
+          %{count: 1} = :rpc.call(node, Rext.Test, :assigns, [node])
+          IO.puts("[nif_host CI check] boot + render + enif_send round trip OK")
+          '@ | Out-File -Encoding utf8 ci_check_nif_host.exs
+
+          try {
+            elixir --name ci_checker@127.0.0.1 --cookie rext_secret -S mix run ci_check_nif_host.exs
+          } finally {
+            Get-Content "host.out.log", "host.err.log" -ErrorAction SilentlyContinue
+            Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+            Remove-Item ci_check_nif_host.exs -ErrorAction SilentlyContinue
+          }

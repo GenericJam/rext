@@ -10,3 +10,6 @@ native/macos/rext_renderer
 native/macos/host/*.o
 native/macos/host/*.so
 native/macos/host/rext_host
+native/windows/host/*.dll
+native/windows/host/*.exe
+native/windows/host/rext_paths.h

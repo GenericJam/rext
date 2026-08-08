@@ -187,6 +187,9 @@ something untested, add coverage or note the follow-up.
 - `src/rext_nif.erl` — NIF stub.
 - `native/macos/main.swift` — socket SwiftUI renderer.
 - `native/macos/host/` — in-process host (`rext_nif.c`, `rext_host.c`, `build.sh`).
+- `native/windows/Program.cs` — socket WinForms renderer.
+- `native/windows/host/` — in-process host, headless proof (`rext_nif.c`,
+  `rext_host.c`, `build.ps1`; requires MinGW-w64 — `choco install mingw`).
 
 ## Decision log
 
@@ -195,7 +198,9 @@ one per decision, append-only; supersede rather than edit). Start there for the
 "why" behind the architecture:
 
 - `2026-07-20-rext-prototype-architecture.md` — the overall shape.
-- `2026-07-20-in-process-nif-host.md` — the in-process embedding recipe.
+- `2026-07-20-in-process-nif-host.md` — the in-process embedding recipe (macOS).
+- `2026-08-07-in-process-nif-host-windows.md` — same recipe, ported to Windows;
+  the `sys_primitive_init`/`ERLANG_DICT` gotcha has no Unix analogue.
 
 ## Keep this file up to date
 
