@@ -105,13 +105,17 @@ Mitigation: **bundle a font** with the renderer so text doesn't vary by OS.
    ("Count: 0" → "Count: 1") reflected in the native window. A Fluent/WinUI 3
    upgrade for Windows is a later option if the native feel needs to be more
    modern.
-4. **Per-platform agent visual verification** — the harness upgrade above (the
+4. ✅ **Multi-window rendering** — the bridge fans out to one renderer per
+   window (`decisions/2026-08-09-multi-window-rendering.md`). Routing verified
+   end-to-end against `rext_demo`; a human visual pass on two simultaneous
+   windows is the outstanding piece.
+5. **Per-platform agent visual verification** — the harness upgrade above (the
    investment that removes the human from the pixel-checking loop).
-5. ~~**rext_mcp**~~ — **not pursued.** Agents drive rext via `mix rext.connect` +
+6. ~~**rext_mcp**~~ — **not pursued.** Agents drive rext via `mix rext.connect` +
    `Rext.Test` over dist (same as mob in practice). An MCP server would only add
    value for a non-shell MCP client (Claude Desktop/Cursor/etc.); revisit if that
    need appears. See `decisions/2026-07-22-skip-rext-mcp.md`.
-6. **In-process NIF host, production** — finish the embedded-BEAM host beyond the
+7. **In-process NIF host, production** — finish the embedded-BEAM host beyond the
    headless proof. ✅ **Windows headless proof done too**
    (`native/windows/host`, `decisions/2026-08-07-in-process-nif-host-windows.md`):
    `erl_start` ported cleanly from macOS's recipe — dynamically resolved from
@@ -127,11 +131,11 @@ Mitigation: **bundle a font** with the renderer so text doesn't vary by OS.
    `enif_send`, driven over dist with `Rext.Test`. GUI wiring (a real WinForms
    window, not just logged frames) is the remaining piece — same open
    state as macOS's own GUI host.
-7. **Distribution: cold install + hot update** — ✅ **cold path built**
+8. **Distribution: cold install + hot update** — ✅ **cold path built**
    (`mix rext.release` + `mix rext.installer` in `rext_dev`; verified
    end-to-end on Windows, including a silent install/uninstall-while-running,
    against `rext_demo`). Hot path still scoped-not-built; see below.
-8. **Component surface** — the desktop vocabulary itself. rext renders five
+9. **Component surface** — the desktop vocabulary itself. rext renders seven
    node types; `guides/desktop_surface_matrix.md` is the honest inventory and
    the source the `bd` backlog is generated from.
 

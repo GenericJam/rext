@@ -6,10 +6,20 @@ defmodule Rext.Bridge do
   connects back over a localhost TCP socket, framed with a 4-byte length header
   (`{:packet, 4}` on both ends). The bridge:
 
-    * listens and accepts the renderer connection (tolerating reconnects),
+    * listens and accepts renderer connections (many at once, tolerating
+      reconnects),
     * receives interaction events and routes them to the owning `Rext.Window`,
     * sends render frames, buffering the latest frame per window so a renderer
       that connects *after* a window first rendered still gets current state.
+
+  ## Many windows, many renderers
+
+  One renderer surface draws one window — that is the desktop model, and it is
+  why an app that opens three windows runs three renderer processes against this
+  one bridge. Each renderer announces the window it draws in its `hello`, and
+  frames are addressed to it; a renderer that announces nothing is sent every
+  window's frames and filters client-side, which is what all three backends did
+  before they announced.
 
   This is the one seam that changes when we move to an in-process NIF host: the
   render frame goes to a NIF call instead of a socket, and events arrive via
@@ -77,9 +87,19 @@ defmodule Rext.Bridge do
   @spec port() :: non_neg_integer()
   def port, do: GenServer.call(__MODULE__, :port)
 
-  @doc "Whether a render backend is currently connected."
+  @doc "Whether at least one render backend is currently connected."
   @spec connected?() :: boolean()
   def connected?, do: GenServer.call(__MODULE__, :connected?)
+
+  @doc """
+  Window ids of the currently connected renderers.
+
+  A renderer that hasn't announced a window (or announced before this was a
+  protocol field) appears as `:all`. Mostly useful to `mix rext.run` and tests,
+  which need to know when every window has a surface.
+  """
+  @spec renderers() :: [String.t() | :all]
+  def renderers, do: GenServer.call(__MODULE__, :renderers)
 
   # ── GenServer ─────────────────────────────────────────────────────────────
 
@@ -104,7 +124,8 @@ defmodule Rext.Bridge do
          %{
            lsock: lsock,
            port: actual_port,
-           sock: nil,
+           # socket => window id it draws, or :all until it announces one
+           socks: %{},
            # window_id => pid
            windows: %{},
            # window_id => latest frame binary
@@ -146,33 +167,35 @@ defmodule Rext.Bridge do
   end
 
   def handle_call(:port, _from, state), do: {:reply, state.port, state}
-  def handle_call(:connected?, _from, state), do: {:reply, state.sock != nil, state}
+  def handle_call(:connected?, _from, state), do: {:reply, state.socks != %{}, state}
+  def handle_call(:renderers, _from, state), do: {:reply, Map.values(state.socks), state}
 
   @impl true
   def handle_cast({:render, window_id, tree}, state) do
     frame = Rext.Renderer.frame(window_id, tree)
-    if state.sock, do: :gen_tcp.send(state.sock, frame)
+    state = broadcast(state, frame, window_id)
     {:noreply, put_in(state.frames[window_id], frame)}
   end
 
   @impl true
   def handle_info({:renderer_connected, sock}, state) do
     :inet.setopts(sock, active: true)
-    Logger.info("[rext] render backend connected")
-    # Flush the latest frame for every known window so a late-connecting
-    # renderer immediately shows current state.
+    state = put_in(state.socks[sock], :all)
+    Logger.info("[rext] render backend connected (#{map_size(state.socks)} attached)")
+    # Flush every known window's latest frame: the renderer hasn't announced
+    # which one it draws yet, and it filters client-side anyway.
     for {_id, frame} <- state.frames, do: :gen_tcp.send(sock, frame)
-    {:noreply, %{state | sock: sock}}
-  end
-
-  def handle_info({:tcp, _sock, data}, state) do
-    route_event(:json.decode(data), state)
     {:noreply, state}
   end
 
-  def handle_info({:tcp_closed, _sock}, state) do
-    Logger.info("[rext] render backend disconnected")
-    {:noreply, %{state | sock: nil}}
+  def handle_info({:tcp, sock, data}, state) do
+    {:noreply, route_event(:json.decode(data), sock, state)}
+  end
+
+  def handle_info({:tcp_closed, sock}, state) do
+    state = %{state | socks: Map.delete(state.socks, sock)}
+    Logger.info("[rext] render backend disconnected (#{map_size(state.socks)} left)")
+    {:noreply, state}
   end
 
   def handle_info({:DOWN, _ref, :process, pid, _reason}, state) do
@@ -184,7 +207,7 @@ defmodule Rext.Bridge do
 
   # ── Internals ─────────────────────────────────────────────────────────────
 
-  defp route_event(%{"t" => "event", "window" => window_id} = ev, state) do
+  defp route_event(%{"t" => "event", "window" => window_id} = ev, _sock, state) do
     case state.windows[window_id] do
       nil ->
         Logger.warning("[rext] event for unknown window #{inspect(window_id)}")
@@ -193,13 +216,36 @@ defmodule Rext.Bridge do
         params = Map.take(ev, ["tag", "value"])
         Rext.Window.dispatch(pid, ev["event"] || "click", params)
     end
+
+    state
   end
 
-  defp route_event(%{"t" => "hello"} = hello, _state) do
-    Logger.info("[rext] renderer hello: #{inspect(hello["renderer"])}")
+  # A renderer may name the window it draws. Binding it means later frames go
+  # only to the renderer that wants them, instead of every window's frames
+  # going to every renderer for client-side filtering.
+  defp route_event(%{"t" => "hello"} = hello, sock, state) do
+    target = hello["window"] || :all
+    Logger.info("[rext] renderer hello: #{inspect(hello["renderer"])} window=#{inspect(target)}")
+    put_in(state.socks[sock], target)
   end
 
-  defp route_event(_other, _state), do: :ok
+  defp route_event(_other, _sock, state), do: state
+
+  # Send a frame to every renderer that wants it — the one bound to this window,
+  # plus any that never announced. A send failure means the peer is gone before
+  # its :tcp_closed arrived; drop it rather than keep retrying a dead socket.
+  defp broadcast(state, frame, window_id) do
+    Enum.reduce(state.socks, state, fn {sock, target}, acc ->
+      if target == window_id or target == :all do
+        case :gen_tcp.send(sock, frame) do
+          :ok -> acc
+          {:error, _} -> %{acc | socks: Map.delete(acc.socks, sock)}
+        end
+      else
+        acc
+      end
+    end)
+  end
 
   defp accept_loop(lsock, bridge) do
     case :gen_tcp.accept(lsock) do

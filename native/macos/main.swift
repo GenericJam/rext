@@ -198,7 +198,7 @@ final class Bridge {
             switch st {
             case .ready:
                 self.wasReady = true
-                self.sendRaw(["t": "hello", "renderer": "macos-swiftui"])
+                self.sendRaw(["t": "hello", "renderer": "macos-swiftui", "window": self.state.target])
                 self.readFrame()
             case .failed, .cancelled:
                 if self.wasReady { self.quit("bridge disconnected") }

@@ -247,7 +247,7 @@ internal sealed class Bridge
         {
             using var client = new TcpClient("127.0.0.1", _port);
             _stream = client.GetStream();
-            Send("{\"t\":\"hello\",\"renderer\":\"winforms\"}");
+            Send($"{{\"t\":\"hello\",\"renderer\":\"winforms\",\"window\":\"{_target}\"}}");
 
             while (true)
             {

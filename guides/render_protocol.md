@@ -12,7 +12,8 @@ platform — implements against. The macOS SwiftUI renderer
   `Rext.Renderer` normalizes it to JSON and sends it to the backend.
 - The backend **draws** the tree and sends **events** (clicks, input) back.
 - One backend instance draws **one window** (`REXT_WINDOW`, default `"main"`); it
-  ignores frames for other windows. A multi-window app runs one backend per window.
+  ignores frames for other windows. A multi-window app runs one backend per
+  window, all against a single bridge — see [Many renderers](#many-renderers).
 - Colors and spacing are **already resolved server-side** (hex strings, pixel
   numbers). A backend draws literal values — it does not need the theme.
 
@@ -35,8 +36,11 @@ All messages are JSON objects with a `"t"` type tag.
 
 **Backend → BEAM, on connect (hello):**
 ```json
-{"t": "hello", "renderer": "compose-desktop"}
+{"t": "hello", "renderer": "compose-desktop", "window": "main"}
 ```
+`window` names the window this backend draws, so the bridge routes only that
+window's frames to it. Omit it and the backend receives every window's frames
+and must filter them itself.
 
 **BEAM → backend (render a frame):**
 ```json
@@ -105,14 +109,28 @@ Planned: `text_field` (`value`, `placeholder`, `on_change` tag → `change` even
 
 Unknown `type`s should render their `children` in a plain container (forward-compat).
 
+## Many renderers
+
+One renderer surface draws one window, so an app with three windows runs three
+renderers against one bridge. A renderer names its window in `hello`:
+
+```json
+{"t": "hello", "renderer": "compose-desktop", "window": "main"}
+```
+
+The bridge then routes that window's frames to it alone. A renderer that omits
+`window` is sent every window's frames and is expected to filter on
+`frame["window"]` itself — which is what every backend does regardless.
+
 ## Lifecycle
 
 1. Backend connects, sends `hello`, starts reading frames.
 2. On each `render` frame for its window, it redraws.
 3. Closing the window → the backend process exits.
-4. On the socket transport under `mix rext.run`, the backend exiting halts the
-   BEAM (no residual node); losing the connection (BEAM gone) → the backend exits.
-   So the two lifetimes are tied in both directions.
+4. On the socket transport under `mix rext.run`, the **last** backend exiting
+   halts the BEAM (no residual node) — closing one window of a multi-window app
+   leaves the rest running. Losing the connection (BEAM gone) → the backend
+   exits. So the two lifetimes are tied in both directions.
 
 ## Reference & conformance
 

@@ -89,7 +89,7 @@ class Bridge(private val port: Int, val target: String) {
         val sock = Socket("127.0.0.1", port)
         val input = DataInputStream(sock.getInputStream())
         out = DataOutputStream(sock.getOutputStream())
-        send(JSONObject().put("t", "hello").put("renderer", "compose-desktop"))
+        send(JSONObject().put("t", "hello").put("window", target).put("renderer", "compose-desktop"))
         while (true) {
           val len = input.readInt() // 4-byte big-endian, matches Erlang {:packet, 4}
           val buf = ByteArray(len)
