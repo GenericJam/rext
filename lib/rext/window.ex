@@ -22,10 +22,10 @@ defmodule Rext.Window do
         end
 
         def render(assigns) do
-          %{type: :column, props: %{gap: :space_md, padding: :space_lg},
+          %{type: :column, props: %{spacing: :space_md, padding: :space_lg},
             children: [
               %{type: :text,   props: %{text: "Count: \#{assigns.count}"}, children: []},
-              %{type: :button, props: %{label: "Increment", on_click: :inc}, children: []}
+              %{type: :button, props: %{text: "Increment", on_click: :inc}, children: []}
             ]}
         end
 

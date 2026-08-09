@@ -49,6 +49,10 @@ defmodule Rext.Test do
   @doc """
   Find nodes whose `:text` or `:label` prop contains `substring`. Returns
   `{path, node}` tuples where `path` is the list of child indices from the root.
+
+  Both props are searched because they mean different things: `:text` is the
+  content a node displays, `:label` the caption on a control that carries its
+  own value (`toggle`, `slider`).
   """
   @spec find(node(), String.t(), String.t()) :: [{list(), map()}]
   def find(node, substring, id \\ "main") do

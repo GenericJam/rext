@@ -12,21 +12,26 @@ defmodule Rext.Renderer do
 
       %{
         type: :column,
-        props: %{gap: :space_md, padding: :space_lg, background: :surface},
+        props: %{spacing: :space_md, padding: :space_lg, background: :surface},
         children: [
-          %{type: :text,   props: %{text: "Count: 0", size: 28, color: :on_surface}, children: []},
-          %{type: :button, props: %{label: "Increment", on_click: :increment}, children: []}
+          %{type: :text,   props: %{text: "Count: 0", font_size: 28, text_color: :on_surface}, children: []},
+          %{type: :button, props: %{text: "Increment", on_click: :increment}, children: []}
         ]
       }
 
   Atom-valued color/background props resolve through `Rext.Theme`; `on_click` /
   `on_change` become the string event tag the backend echoes back on interaction.
+
+  Prop names follow Compose + SwiftUI — see
+  `decisions/2026-08-08-component-nomenclature.md`.
   """
 
   alias Rext.Theme
 
-  @color_props ~w(color background border_color)a
-  @space_props ~w(gap padding)a
+  # `text_color` is the foreground; `color` stays valid for single-color nodes
+  # that have no text (divider, progress) where "the color" is unambiguous.
+  @color_props ~w(text_color color background border_color)a
+  @space_props ~w(spacing padding)a
   @event_props ~w(on_click on_change)a
 
   @doc """

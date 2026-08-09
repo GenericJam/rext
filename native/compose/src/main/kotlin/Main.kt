@@ -121,27 +121,27 @@ fun NodeView(node: RNode, bridge: Bridge) {
       var m: Modifier = Modifier.fillMaxSize()
       hexColor(node.str("background"))?.let { m = m.background(it) }
       m = m.padding((node.num("padding") ?: 0).dp)
-      Column(modifier = m, verticalArrangement = Arrangement.spacedBy((node.num("gap") ?: 8).dp)) {
+      Column(modifier = m, verticalArrangement = Arrangement.spacedBy((node.num("spacing") ?: 8).dp)) {
         node.children.forEach { NodeView(it, bridge) }
       }
     }
     "row" ->
       Row(
         modifier = Modifier.padding((node.num("padding") ?: 0).dp),
-        horizontalArrangement = Arrangement.spacedBy((node.num("gap") ?: 8).dp),
+        horizontalArrangement = Arrangement.spacedBy((node.num("spacing") ?: 8).dp),
       ) {
         node.children.forEach { NodeView(it, bridge) }
       }
     "text" ->
       Text(
         text = node.str("text") ?: "",
-        fontSize = (node.num("size") ?: 15).sp,
-        color = hexColor(node.str("color")) ?: Color.Unspecified,
+        fontSize = (node.num("font_size") ?: 15).sp,
+        color = hexColor(node.str("text_color")) ?: Color.Unspecified,
         fontFamily = InterFamily,
       )
     "button" ->
       Button(onClick = { node.str("on_click")?.let { bridge.sendEvent("click", it) } }) {
-        Text(node.str("label") ?: "", fontFamily = InterFamily)
+        Text(node.str("text") ?: "", fontFamily = InterFamily)
       }
     else -> Column { node.children.forEach { NodeView(it, bridge) } }
   }

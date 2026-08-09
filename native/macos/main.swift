@@ -100,7 +100,7 @@ struct NodeView: View {
     var body: some View {
         switch node.type {
         case "column":
-            VStack(alignment: .leading, spacing: node.num("gap") ?? 8) {
+            VStack(alignment: .leading, spacing: node.num("spacing") ?? 8) {
                 ForEach(node.children) { NodeView(node: $0) }
             }
             .padding(node.num("padding") ?? 0)
@@ -108,25 +108,25 @@ struct NodeView: View {
             .background(rextColor(node.str("background")))
 
         case "row":
-            HStack(spacing: node.num("gap") ?? 8) {
+            HStack(spacing: node.num("spacing") ?? 8) {
                 ForEach(node.children) { NodeView(node: $0) }
             }
             .padding(node.num("padding") ?? 0)
 
         case "text":
             Text(node.str("text") ?? "")
-                .font(.system(size: node.num("size") ?? 15))
-                .foregroundColor(rextColor(node.str("color")) ?? .primary)
+                .font(.system(size: node.num("font_size") ?? 15))
+                .foregroundColor(rextColor(node.str("text_color")) ?? .primary)
 
         case "button":
             Button(action: {
                 if let tag = node.str("on_click") { state.send?("click", tag) }
             }) {
-                Text(node.str("label") ?? "")
+                Text(node.str("text") ?? "")
                     .padding(.horizontal, 14).padding(.vertical, 8)
             }
             .buttonStyle(.plain)
-            .background(rextColor(node.str("color")) ?? Color.gray.opacity(0.3))
+            .background(rextColor(node.str("background")) ?? Color.gray.opacity(0.3))
             .foregroundColor(.white)
             .cornerRadius(8)
 

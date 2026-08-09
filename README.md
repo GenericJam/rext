@@ -32,10 +32,10 @@ defmodule MyApp.CounterWindow do
   def mount(_params, socket), do: {:ok, Rext.Socket.assign(socket, :count, 0)}
 
   def render(assigns) do
-    %{type: :column, props: %{gap: :space_lg, padding: :space_xl},
+    %{type: :column, props: %{spacing: :space_lg, padding: :space_xl},
       children: [
-        %{type: :text,   props: %{text: "Count: #{assigns.count}", size: 34}, children: []},
-        %{type: :button, props: %{label: "Increment", on_click: :inc}, children: []}
+        %{type: :text,   props: %{text: "Count: #{assigns.count}", font_size: 34}, children: []},
+        %{type: :button, props: %{text: "Increment", on_click: :inc}, children: []}
       ]}
   end
 

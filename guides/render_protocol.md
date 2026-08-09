@@ -55,7 +55,7 @@ The backend ignores frames whose `"window"` ≠ its `REXT_WINDOW`.
 ## Node format
 
 ```json
-{"type": "column", "props": {"gap": 24, "padding": 32, "background": "#1e1e28"},
+{"type": "column", "props": {"spacing": 24, "padding": 32, "background": "#1e1e28"},
  "children": [ ...nodes... ]}
 ```
 Every node has string `type`, a `props` object (string keys), and `children`.
@@ -64,10 +64,15 @@ Every node has string `type`, a `props` object (string keys), and `children`.
 
 | type    | props | notes |
 |---------|-------|-------|
-| `column`| `gap` (px int), `padding` (px int), `background` (hex) | vertical stack, leading-aligned |
-| `row`   | `gap`, `padding`, `background` | horizontal stack |
-| `text`  | `text` (string), `size` (px int), `color` (hex) | |
-| `button`| `label` (string), `on_click` (tag string), `color` (hex) | emits `click` with `tag` |
+| `column`| `spacing` (px int), `padding` (px int), `background` (hex) | vertical stack, leading-aligned |
+| `row`   | `spacing`, `padding`, `background` | horizontal stack |
+| `text`  | `text` (string), `font_size` (px int), `text_color` (hex) | |
+| `button`| `text` (string), `on_click` (tag string), `background` (hex) | emits `click` with `tag`. `background` honored on SwiftUI only |
+
+Prop names follow Compose + SwiftUI — see
+`decisions/2026-08-08-component-nomenclature.md` for the vocabulary and the
+tiebreak order. `text` is the content a node displays; `label` is reserved for
+the caption on a control that carries its own value (`toggle`, `slider`).
 
 Planned: `text_field` (`value`, `placeholder`, `on_change` tag → `change` events).
 

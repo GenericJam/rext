@@ -76,13 +76,13 @@ internal sealed class RenderForm : Form
                     panel.BackColor = bg;
                 }
 
-                int gap = Num(props, "gap") ?? 8;
+                int spacing = Num(props, "spacing") ?? 8;
                 if (children.ValueKind == JsonValueKind.Array)
                 {
                     foreach (var c in children.EnumerateArray())
                     {
                         var ctl = BuildControl(c);
-                        ctl.Margin = type == "column" ? new Padding(0, 0, 0, gap) : new Padding(0, 0, gap, 0);
+                        ctl.Margin = type == "column" ? new Padding(0, 0, 0, spacing) : new Padding(0, 0, spacing, 0);
                         panel.Controls.Add(ctl);
                     }
                 }
@@ -95,9 +95,9 @@ internal sealed class RenderForm : Form
                 {
                     Text = Str(props, "text") ?? "",
                     AutoSize = true,
-                    Font = new Font("Segoe UI", Num(props, "size") ?? 12),
+                    Font = new Font("Segoe UI", Num(props, "font_size") ?? 12),
                 };
-                if (HexColor(Str(props, "color")) is { } fc)
+                if (HexColor(Str(props, "text_color")) is { } fc)
                 {
                     lbl.ForeColor = fc;
                 }
@@ -108,7 +108,7 @@ internal sealed class RenderForm : Form
             {
                 var btn = new Button
                 {
-                    Text = Str(props, "label") ?? "",
+                    Text = Str(props, "text") ?? "",
                     AutoSize = true,
                     FlatStyle = FlatStyle.System, // native Win32 button
                 };

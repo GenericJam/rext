@@ -6,7 +6,7 @@ defmodule Rext.RendererTest do
   test "normalize converts types/keys to strings and keeps structure" do
     tree = %{
       type: :column,
-      props: %{gap: :space_md},
+      props: %{spacing: :space_md},
       children: [
         %{type: :text, props: %{text: "hi"}, children: []}
       ]
@@ -14,7 +14,7 @@ defmodule Rext.RendererTest do
 
     assert %{
              "type" => "column",
-             "props" => %{"gap" => 16},
+             "props" => %{"spacing" => 16},
              "children" => [%{"type" => "text", "props" => %{"text" => "hi"}, "children" => []}]
            } = Renderer.normalize(tree)
   end
@@ -24,6 +24,11 @@ defmodule Rext.RendererTest do
     %{"props" => props} = Renderer.normalize(node)
     assert props["color"] == "#7c5cff"
     assert props["background"] == "#2a2a38"
+  end
+
+  test "normalize resolves text_color, the foreground prop" do
+    node = %{type: :text, props: %{text: "hi", text_color: :on_surface}, children: []}
+    assert Renderer.normalize(node)["props"]["text_color"] == "#e8e8f0"
   end
 
   test "normalize reduces on_click to its string tag (bare atom or {pid, tag})" do
