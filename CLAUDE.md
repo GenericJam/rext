@@ -191,6 +191,28 @@ something untested, add coverage or note the follow-up.
 - `native/windows/host/` — in-process host, headless proof (`rext_nif.c`,
   `rext_host.c`, `build.ps1`; requires MinGW-w64 — `choco install mingw`).
 
+## The backlog — `bd` (beads)
+
+Work is tracked in `bd`, in-repo under `.beads/` (JSONL is the source of
+truth; the SQLite db is gitignored).
+
+```bash
+bd ready              # unblocked work, highest priority first — start here
+bd list -p 0          # everything critical
+bd show rext-jc7      # one issue
+bd blocked            # what's waiting, and on what
+```
+
+Issues are **generated from `guides/desktop_surface_matrix.md`** — that doc is
+the honest inventory of what rext covers per backend, and every ❌/🟡 row is a
+backlog candidate. Update the matrix row in the same commit as the work, and
+fill a component's **native-mapping note** (which SwiftUI control, which
+WinForms control, which props they can't honor) *before* implementing it in
+Compose. Compose is Skia and will happily draw something no native control can
+express — that's the trap the rule exists to catch.
+
+`PLAN.md` keeps the thesis and the roadmap; `bd` holds the grind.
+
 ## Decision log
 
 Non-obvious decisions go in `decisions/YYYY-MM-DD-slug.md` (lightweight ADRs,
@@ -201,6 +223,8 @@ one per decision, append-only; supersede rather than edit). Start there for the
 - `2026-07-20-in-process-nif-host.md` — the in-process embedding recipe (macOS).
 - `2026-08-07-in-process-nif-host-windows.md` — same recipe, ported to Windows;
   the `sys_primitive_init`/`ERLANG_DICT` gotcha has no Unix analogue.
+- `2026-08-08-component-nomenclature.md` — prop naming follows Compose +
+  SwiftUI; WinForms is the capability floor but gets no vote on names.
 
 ## Keep this file up to date
 

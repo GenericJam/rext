@@ -1,2 +1,5 @@
 * text=auto eol=lf
 native/compose/gradlew.bat -text
+
+# Use bd merge for beads JSONL files
+.beads/beads.jsonl merge=beads

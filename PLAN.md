@@ -127,8 +127,13 @@ Mitigation: **bundle a font** with the renderer so text doesn't vary by OS.
    `enif_send`, driven over dist with `Rext.Test`. GUI wiring (a real WinForms
    window, not just logged frames) is the remaining piece — same open
    state as macOS's own GUI host.
-7. **Distribution: cold install + hot update** — scoped, not yet built. No
-   research risk left here; see below.
+7. **Distribution: cold install + hot update** — ✅ **cold path built**
+   (`mix rext.release` + `mix rext.installer` in `rext_dev`; verified
+   end-to-end on Windows, including a silent install/uninstall-while-running,
+   against `rext_demo`). Hot path still scoped-not-built; see below.
+8. **Component surface** — the desktop vocabulary itself. rext renders five
+   node types; `guides/desktop_surface_matrix.md` is the honest inventory and
+   the source the `bd` backlog is generated from.
 
 ## Distribution — cold install + hot update (scoped 2026-08-07)
 
@@ -142,7 +147,9 @@ Shipping an app to end users splits into two tiers that don't share a mechanism:
   already produces (release + renderer + launcher); the installer's uninstall
   step needs to run the release's `stop` command first, or it can orphan a
   running `erl.exe`. WiX/MSI is the fallback if Group Policy / enterprise
-  deployment ever becomes a real requirement — not needed now. Not yet built.
+  deployment ever becomes a real requirement — not needed now. **Built**
+  (`mix rext.installer`), with one known limitation: the launcher pins a fixed
+  bridge port, so only one instance runs at a time (`bd` issue `rext-3hi`).
 - **Hot path** (pure BEAM code changes, no restart): OTP's own release-handling
   machinery — `.appup` → `systools:make_relup` → an upgrade tarball → the
   running node's `release_handler` (unpack → dry-run check → install → make
