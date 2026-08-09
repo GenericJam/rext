@@ -8,8 +8,18 @@ defmodule Rext.BridgeTest do
   # client (matching the Swift renderer's 4-byte framing) receives a render
   # frame and drives a click back into the window.
 
+  # start_supervised! rather than start_link: every test here registers the same
+  # :win_bridge name, and ExUnit guarantees a supervised child is down before the
+  # next test starts. A linked window is not guaranteed to be — a `:normal` exit
+  # from the test process doesn't kill a non-trapping child — so the survivor
+  # would hold the name and every subsequent setup fails with :already_started.
   setup do
-    {:ok, pid} = Window.start_link(CounterWindow, %{}, id: "bridgetest", name: :win_bridge)
+    pid =
+      start_supervised!(%{
+        id: :win_bridge,
+        start: {Window, :start_link, [CounterWindow, %{}, [id: "bridgetest", name: :win_bridge]]}
+      })
+
     port = Rext.Bridge.port()
 
     {:ok, sock} =
