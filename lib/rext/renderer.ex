@@ -24,8 +24,25 @@ defmodule Rext.Renderer do
 
   Prop names follow Compose + SwiftUI — see
   `decisions/2026-08-08-component-nomenclature.md`.
+
+  ## Platform-scoped props
+
+  A prop can be scoped to a platform (`:macos` / `:windows` / `:linux`) or to a
+  backend (`:compose` / `:swiftui` / `:winforms`):
+
+      props: %{padding: 12, macos: %{padding: 20}, winforms: %{corner_radius: 0}}
+
+  Backends never see the scoped form — it's resolved here, against
+  `Rext.Platform.scope/0`, before serialization. Precedence is
+  unscoped < platform < backend: a backend override is the narrower claim
+  ("WinForms specifically can't do this") and wins over a platform one.
+
+  This is what keeps a capability gap from becoming a vocabulary amputation: a
+  prop the weakest backend can't honor stays in the protocol, scoped, rather
+  than being dropped from it for everyone.
   """
 
+  alias Rext.Platform
   alias Rext.Theme
 
   # `text_color` is the foreground; `color` stays valid for single-color nodes
@@ -34,21 +51,44 @@ defmodule Rext.Renderer do
   @space_props ~w(spacing padding)a
   @event_props ~w(on_click on_change)a
 
+  @scope_props Platform.platforms() ++ Platform.backends()
+
   @doc """
-  Normalize a component tree into a JSON-safe map: string keys, resolved theme
-  tokens, event handlers reduced to their string tag. Pure — the unit under test.
+  Normalize a component tree into a JSON-safe map: string keys, platform-scoped
+  props resolved, theme tokens resolved, event handlers reduced to their string
+  tag.
+
+  `scope` defaults to `Rext.Platform.scope/0`; pass one explicitly to normalize
+  for a platform other than the host. Pure given a scope — the unit under test.
   """
-  @spec normalize(map()) :: map()
-  def normalize(%{type: type} = node) do
-    props = Map.get(node, :props, %{})
+  @spec normalize(map(), Platform.scope()) :: map()
+  def normalize(node, scope \\ Platform.scope())
+
+  def normalize(%{type: type} = node, scope) do
+    props = node |> Map.get(:props, %{}) |> resolve_scopes(scope)
     children = Map.get(node, :children, [])
 
     %{
       "type" => to_string(type),
       "props" => normalize_props(props),
-      "children" => Enum.map(children, &normalize/1)
+      "children" => Enum.map(children, &normalize(&1, scope))
     }
   end
+
+  # Merge scoped overrides down onto the base props, most-specific last:
+  # unscoped < platform-scoped < backend-scoped. A backend override is the
+  # narrower statement ("WinForms specifically can't do this"), so it wins over
+  # a platform one ("Windows generally wants this").
+  defp resolve_scopes(props, scope) do
+    {scoped, base} = Map.split(props, @scope_props)
+
+    base
+    |> merge_scope(Map.get(scoped, scope.platform))
+    |> merge_scope(Map.get(scoped, scope.backend))
+  end
+
+  defp merge_scope(props, nil), do: props
+  defp merge_scope(props, %{} = override), do: Map.merge(props, override)
 
   defp normalize_props(props) do
     Map.new(props, fn {k, v} -> {to_string(k), normalize_value(k, v)} end)
@@ -74,9 +114,9 @@ defmodule Rext.Renderer do
   Render a tree to a JSON binary frame for a given window id. This is what the
   bridge puts on the wire (or, later, hands to the render NIF).
   """
-  @spec frame(String.t(), map()) :: binary()
-  def frame(window_id, tree) do
-    %{"t" => "render", "window" => window_id, "tree" => normalize(tree)}
+  @spec frame(String.t(), map(), Platform.scope()) :: binary()
+  def frame(window_id, tree, scope \\ Platform.scope()) do
+    %{"t" => "render", "window" => window_id, "tree" => normalize(tree, scope)}
     |> :json.encode()
     |> IO.iodata_to_binary()
   end

@@ -46,4 +46,57 @@ defmodule Rext.RendererTest do
     assert decoded["window"] == "main"
     assert decoded["tree"]["type"] == "text"
   end
+
+  describe "platform-scoped props" do
+    @mac %{platform: :macos, backend: :swiftui}
+    @win %{platform: :windows, backend: :winforms}
+
+    test "a platform scope overrides the unscoped value, and is stripped from the frame" do
+      node = %{type: :box, props: %{padding: 12, macos: %{padding: 20}}, children: []}
+
+      assert Renderer.normalize(node, @mac)["props"] == %{"padding" => 20}
+      assert Renderer.normalize(node, @win)["props"] == %{"padding" => 12}
+    end
+
+    test "a backend scope beats a platform scope — the narrower claim wins" do
+      node = %{
+        type: :toggle,
+        props: %{corner_radius: 8, windows: %{corner_radius: 4}, winforms: %{corner_radius: 0}},
+        children: []
+      }
+
+      assert Renderer.normalize(node, @win)["props"] == %{"corner_radius" => 0}
+    end
+
+    test "scoped props resolve through the theme like any other prop" do
+      node = %{
+        type: :text,
+        props: %{text_color: :muted, macos: %{text_color: :primary}},
+        children: []
+      }
+
+      assert Renderer.normalize(node, @mac)["props"]["text_color"] == "#7c5cff"
+      assert Renderer.normalize(node, @win)["props"]["text_color"] == "#9a9ab0"
+    end
+
+    test "a scope can add a prop the base doesn't have" do
+      node = %{type: :box, props: %{padding: 4, winforms: %{background: :surface}}, children: []}
+
+      assert Renderer.normalize(node, @win)["props"] == %{
+               "padding" => 4,
+               "background" => "#2a2a38"
+             }
+    end
+
+    test "scopes resolve at every depth, not just the root" do
+      node = %{
+        type: :column,
+        props: %{spacing: 8},
+        children: [%{type: :text, props: %{text: "hi", macos: %{text: "hello"}}, children: []}]
+      }
+
+      [child] = Renderer.normalize(node, @mac)["children"]
+      assert child["props"]["text"] == "hello"
+    end
+  end
 end

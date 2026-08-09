@@ -74,6 +74,30 @@ Prop names follow Compose + SwiftUI — see
 tiebreak order. `text` is the content a node displays; `label` is reserved for
 the caption on a control that carries its own value (`toggle`, `slider`).
 
+### Platform-scoped props
+
+A prop can be scoped to a platform (`macos` / `windows` / `linux`) or to a
+backend (`compose` / `swiftui` / `winforms`):
+
+```elixir
+props: %{padding: 12, macos: %{padding: 20}, winforms: %{corner_radius: 0}}
+```
+
+Precedence is unscoped < platform < backend — a backend override is the
+narrower claim ("WinForms specifically can't do this") and wins over a platform
+one ("Windows generally wants this").
+
+**Backends never see the scoped form.** `Rext.Renderer` resolves it against
+`Rext.Platform.scope/0` and strips the scope keys before serializing, so a
+backend implements one flat prop set and nothing else. Two axes rather than
+mob's one, because Compose is the baseline on *every* platform and the native
+backends are an opt-in upgrade on top — so "which OS" and "which backend" are
+genuinely different questions here.
+
+This is what keeps a capability gap from becoming a vocabulary amputation: a
+prop the weakest backend can't honor stays in the protocol, scoped, rather than
+being removed from it for everyone.
+
 Planned: `text_field` (`value`, `placeholder`, `on_change` tag → `change` events).
 
 Unknown `type`s should render their `children` in a plain container (forward-compat).

@@ -184,7 +184,7 @@ The seam everything above depends on.
 | Spacing tokens | 🟡 | 5 steps (`space_xs`…`space_xl`) |
 | Radius tokens | ❌ | mob has `:radius_sm/md`; `box` and `button` need them |
 | Text-size / weight tokens | ❌ | mob has `:base` etc.; `text` takes raw px only |
-| **Platform-scoped props** (`macos:`/`windows:`/`linux:`) | ❌ | **The escape hatch the native-mapping rule depends on. Build first** |
+| **Platform-scoped props** (`macos:`/`windows:`/`linux:`) | ✅ | Two axes: platform *and* backend (`compose:`/`swiftui:`/`winforms:`), since Compose is the baseline everywhere and natives are an opt-in upgrade. Precedence unscoped < platform < backend; resolved in `Rext.Renderer` and stripped before the wire, so backends see one flat prop set. `Rext.Platform` |
 | Prop validation / unknown-prop diagnostics | ❌ | `Rext.Renderer.normalize/1` accepts any map; typos fail silently |
 | Component catalog kept in sync with backends | ❌ | Already drifted: `box` ships on all three, documented on none |
 | Template sigil (`~UI`) | ❌ | mob has `~MOB` with `:if`/`:for`. rext writes raw maps — verbose, and the gap most visible to a new user |
