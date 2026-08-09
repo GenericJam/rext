@@ -153,6 +153,53 @@ defmodule Rext.BridgeTest do
     end
   end
 
+  describe "describe round-trip (native tree)" do
+    test "no renderer bound to the window" do
+      assert Rext.Bridge.describe("nobody", 200) == {:error, :no_renderer}
+    end
+
+    test "the bridge relays the renderer's own description of what it built" do
+      %{sock: sock} = announce_and_drain("bridgetest")
+
+      task = Task.async(fn -> Rext.Bridge.describe("bridgetest", 2_000) end)
+
+      # Stand in for a backend: answer the describe with a tree that
+      # deliberately differs from what the BEAM sent, so a pass can only come
+      # from the reply and not from the bridge echoing its own state.
+      assert {:ok, req} = :gen_tcp.recv(sock, 0, 1_000)
+      req = :json.decode(req)
+      assert req["t"] == "describe"
+      assert req["window"] == "bridgetest"
+
+      reply = %{
+        "t" => "described",
+        "window" => "bridgetest",
+        "ref" => req["ref"],
+        "tree" => %{"kind" => "NSStackView", "label" => nil, "children" => []}
+      }
+
+      :gen_tcp.send(sock, :json.encode(reply))
+
+      assert {:ok, %{"kind" => "NSStackView"}} = Task.await(task)
+    end
+
+    test "a renderer that never answers times out rather than hanging" do
+      %{sock: _} = announce_and_drain("bridgetest")
+      assert Rext.Bridge.describe("bridgetest", 300) == {:error, :timeout}
+    end
+  end
+
+  # A raw socket bound to `window`, with its connect-time frame backlog drained.
+  defp announce_and_drain(window) do
+    {:ok, sock} =
+      :gen_tcp.connect(~c"127.0.0.1", Rext.Bridge.port(), [:binary, packet: 4, active: false])
+
+    on_exit(fn -> :gen_tcp.close(sock) end)
+    announce(sock, window)
+    drain(sock)
+    %{sock: sock}
+  end
+
   defp drain(sock) do
     case :gen_tcp.recv(sock, 0, 100) do
       {:ok, _} -> drain(sock)

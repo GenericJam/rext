@@ -53,7 +53,22 @@ internal sealed class RenderForm : Form
         ResumeLayout();
     }
 
+    // One hook for every node: build it, then apply the accessibility name that
+    // Narrator and any AX-tree walk read.
     private Control BuildControl(JsonElement node)
+    {
+        var ctl = BuildNode(node);
+
+        if (node.TryGetProperty("props", out var p) &&
+            Str(p, "accessibility_label") is { Length: > 0 } label)
+        {
+            ctl.AccessibleName = label;
+        }
+
+        return ctl;
+    }
+
+    private Control BuildNode(JsonElement node)
     {
         string type = node.TryGetProperty("type", out var t) ? t.GetString() ?? "unknown" : "unknown";
         var props = node.TryGetProperty("props", out var pr) ? pr : default;
@@ -266,6 +281,17 @@ internal sealed class Bridge
                         _form.ApplyTree(td.RootElement);
                     });
                 }
+                else if (obj.GetProperty("t").GetString() == "describe" &&
+                         obj.GetProperty("window").GetString() == _target)
+                {
+                    string reqRef = obj.GetProperty("ref").GetString() ?? "";
+                    // Walk on the UI thread — Controls is only safe there — and
+                    // reply with the *real* Win32 control tree, not our copy of
+                    // the frame that produced it.
+                    _form.Invoke(() => Send(
+                        $"{{\"t\":\"described\",\"window\":\"{_target}\"," +
+                        $"\"ref\":\"{reqRef}\",\"tree\":{DescribeRoot(_form)}}}"));
+                }
             }
         }
         catch
@@ -273,6 +299,28 @@ internal sealed class Bridge
             // Connection ended (BEAM gone) — quit so we don't orphan the renderer.
             Environment.Exit(0);
         }
+    }
+
+    // The genuine native hierarchy: each node reports the concrete WinForms
+    // control class that exists on screen. A node rext sent but WinForms never
+    // built simply isn't here — which is the whole point of asking.
+    private static string DescribeRoot(Form form) =>
+        form.Controls.Count == 0 ? "null" : Describe(form.Controls[0]);
+
+    private static string Describe(Control c)
+    {
+        string name = c.AccessibleName is { Length: > 0 } n
+            ? "\"" + JsonEncodedText.Encode(n) + "\""
+            : "null";
+
+        var kids = new List<string>();
+        foreach (Control child in c.Controls)
+        {
+            kids.Add(Describe(child));
+        }
+
+        return $"{{\"kind\":\"{c.GetType().Name}\",\"label\":{name}," +
+               $"\"children\":[{string.Join(",", kids)}]}}";
     }
 
     private void SendEvent(string ev, string tag) =>

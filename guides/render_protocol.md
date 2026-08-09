@@ -56,6 +56,39 @@ The backend ignores frames whose `"window"` ≠ its `REXT_WINDOW`.
 - `tag`: the control's `on_click` / `on_change` tag.
 - `window`: the backend's target window id.
 
+**BEAM → backend (describe what you actually built):**
+```json
+{"t": "describe", "window": "main", "ref": "1234"}
+```
+**Backend → BEAM (the reply):**
+```json
+{"t": "described", "window": "main", "ref": "1234",
+ "tree": {"kind": "VStack", "label": null, "children": [...]}}
+```
+Echo `ref` verbatim — the bridge correlates replies with waiting callers by it.
+
+This is the one message where the backend is the authority. `Rext.Test.tree/2`
+reads what the BEAM *asked for*; this reads what the backend *made of it*, so a
+node the backend silently dropped shows up here and nowhere else.
+
+`kind` is the concrete widget created for that node. **A node type the backend
+doesn't handle must report its fallback as such** (`"Column(fallback)"`,
+`"VStack(fallback)"`) rather than naming a real widget — a silent drop that
+looks like a success is the exact failure this exists to catch.
+
+What `kind` is derived from differs by backend, and the difference is worth
+knowing when you assert on it:
+
+| backend | source | catches |
+|--|--|--|
+| WinForms | the **real** `Control` tree walked live | a control that was never built, or built as the wrong class |
+| SwiftUI | the branch `NodeView` takes per node | undelivered frames, parse failures, unhandled types |
+| Compose | the branch `NodeView` takes per node | same |
+
+SwiftUI and Compose expose no inspectable widget tree from inside the process,
+so theirs is what the renderer *believes* it drew. Weaker than WinForms', still
+independent of the BEAM.
+
 ## Node format
 
 ```json
@@ -75,6 +108,20 @@ Every node has string `type`, a `props` object (string keys), and `children`.
 | `box`   | `padding`, `background` (hex), `corner_radius` (px int), `fill_width` (bool) | container. `corner_radius` accepted-and-ignored on WinForms — Win32 panels have none |
 | `spacer`| `size` (px int) | fixed space; omit `size` to fill the remaining space along the parent's axis |
 | `divider`| `color` (hex), `thickness` (px int, default 1) | horizontal rule |
+
+### Universal props
+
+Valid on **every** node type:
+
+| prop | type | notes |
+|--|--|--|
+| `accessibility_label` | string | The node's accessible name. `accessibilityLabel` (SwiftUI) / `contentDescription` (Compose) / `AccessibleName` (WinForms) |
+
+The name is a tiebreak-rule-3 call from
+`decisions/2026-08-08-component-nomenclature.md`: SwiftUI and Compose disagree
+outright (`accessibilityLabel` vs `contentDescription`), so the prop is named
+for its role in rext's model rather than either platform's word. Bare `label`
+was unavailable — it means the caption on a control that carries its own value.
 
 Prop names follow Compose + SwiftUI — see
 `decisions/2026-08-08-component-nomenclature.md` for the vocabulary and the

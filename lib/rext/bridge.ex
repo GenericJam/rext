@@ -92,6 +92,24 @@ defmodule Rext.Bridge do
   def connected?, do: GenServer.call(__MODULE__, :connected?)
 
   @doc """
+  Ask the renderer drawing `window_id` to describe what it actually built.
+
+  This is the one call that does **not** trust the BEAM's own view: `Rext.Test`
+  can already read the tree a window *rendered*, but only the backend knows what
+  it turned that into. A node the backend silently dropped — an unknown type, a
+  frame that never arrived — shows up here and nowhere else.
+
+  Returns `{:error, :no_renderer}` when nothing is drawing that window, and
+  `{:error, :timeout}` if the renderer doesn't answer.
+  """
+  @spec describe(String.t(), timeout()) :: {:ok, map()} | {:error, :no_renderer | :timeout}
+  def describe(window_id, timeout \\ 2_000) do
+    GenServer.call(__MODULE__, {:describe, window_id}, timeout)
+  catch
+    :exit, {:timeout, _} -> {:error, :timeout}
+  end
+
+  @doc """
   Window ids of the currently connected renderers.
 
   A renderer that hasn't announced a window (or announced before this was a
@@ -129,7 +147,9 @@ defmodule Rext.Bridge do
            # window_id => pid
            windows: %{},
            # window_id => latest frame binary
-           frames: %{}
+           frames: %{},
+           # describe ref => caller awaiting the reply
+           pending: %{}
          }}
 
       {:error, reason} ->
@@ -169,6 +189,19 @@ defmodule Rext.Bridge do
   def handle_call(:port, _from, state), do: {:reply, state.port, state}
   def handle_call(:connected?, _from, state), do: {:reply, state.socks != %{}, state}
   def handle_call(:renderers, _from, state), do: {:reply, Map.values(state.socks), state}
+
+  def handle_call({:describe, window_id}, from, state) do
+    case Enum.find(state.socks, fn {_s, target} -> target == window_id end) do
+      nil ->
+        {:reply, {:error, :no_renderer}, state}
+
+      {sock, _} ->
+        ref = Integer.to_string(System.unique_integer([:positive]))
+        frame = :json.encode(%{"t" => "describe", "window" => window_id, "ref" => ref})
+        :gen_tcp.send(sock, IO.iodata_to_binary(frame))
+        {:noreply, put_in(state.pending[ref], from)}
+    end
+  end
 
   @impl true
   def handle_cast({:render, window_id, tree}, state) do
@@ -227,6 +260,18 @@ defmodule Rext.Bridge do
     target = hello["window"] || :all
     Logger.info("[rext] renderer hello: #{inspect(hello["renderer"])} window=#{inspect(target)}")
     put_in(state.socks[sock], target)
+  end
+
+  defp route_event(%{"t" => "described", "ref" => ref} = msg, _sock, state) do
+    case Map.pop(state.pending, ref) do
+      {nil, _} ->
+        Logger.warning("[rext] described reply for unknown ref #{inspect(ref)}")
+        state
+
+      {from, pending} ->
+        GenServer.reply(from, {:ok, msg["tree"]})
+        %{state | pending: pending}
+    end
   end
 
   defp route_event(_other, _sock, state), do: state

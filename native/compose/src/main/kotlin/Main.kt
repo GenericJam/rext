@@ -31,6 +31,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.toComposeImageBitmap
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.platform.Font
 import androidx.compose.ui.unit.dp
@@ -98,6 +100,14 @@ class Bridge(private val port: Int, val target: String) {
           // One renderer draws one window; ignore frames for others.
           if (obj.optString("t") == "render" && obj.optString("window") == target) {
             root.value = RNode.parse(obj.getJSONObject("tree"))
+          } else if (obj.optString("t") == "describe" && obj.optString("window") == target) {
+            send(
+              JSONObject()
+                .put("t", "described")
+                .put("window", target)
+                .put("ref", obj.optString("ref"))
+                .put("tree", describe(root.value)),
+            )
           }
         }
       } catch (_: Exception) {
@@ -105,6 +115,33 @@ class Bridge(private val port: Int, val target: String) {
         exitProcess(0)
       }
     }
+  }
+
+  // What this renderer built. Compose's semantics tree isn't reachable from
+  // here, so `kind` is the composable NodeView produces for each type — and an
+  // unhandled type reports as "Column(fallback)" instead of passing for a real
+  // widget, which is the drop a green build would hide.
+  private fun describe(n: RNode?): Any {
+    if (n == null) return JSONObject.NULL
+
+    val kind =
+      when (n.type) {
+        "column" -> "Column"
+        "row" -> "Row"
+        "text" -> "Text"
+        "button" -> "Button"
+        "box" -> "Box"
+        "spacer" -> "Spacer"
+        "divider" -> "Divider"
+        else -> "Column(fallback)"
+      }
+
+    val kids = JSONArray()
+    n.children.forEach { kids.put(describe(it)) }
+    return JSONObject()
+      .put("kind", kind)
+      .put("label", n.str("accessibility_label") ?: JSONObject.NULL)
+      .put("children", kids)
   }
 
   fun sendEvent(event: String, tag: String) {
@@ -124,11 +161,19 @@ class Bridge(private val port: Int, val target: String) {
 
 // ── Compose views ────────────────────────────────────────────────────────────
 
+// Compose has no single wrapper for this the way SwiftUI's ViewModifier does —
+// each composable takes its own modifier — so the label is threaded into every
+// branch below. contentDescription is Compose's accessibilityLabel.
+fun RNode.a11y(): Modifier {
+  val label = str("accessibility_label")
+  return if (label.isNullOrEmpty()) Modifier else Modifier.semantics { contentDescription = label }
+}
+
 @Composable
 fun NodeView(node: RNode, bridge: Bridge) {
   when (node.type) {
     "column" -> {
-      var m: Modifier = Modifier.fillMaxSize()
+      var m: Modifier = Modifier.fillMaxSize().then(node.a11y())
       hexColor(node.str("background"))?.let { m = m.background(it) }
       m = m.padding((node.num("padding") ?: 0).dp)
       Column(modifier = m, verticalArrangement = Arrangement.spacedBy((node.num("spacing") ?: 8).dp)) {
@@ -137,24 +182,28 @@ fun NodeView(node: RNode, bridge: Bridge) {
     }
     "row" ->
       Row(
-        modifier = Modifier.padding((node.num("padding") ?: 0).dp),
+        modifier = Modifier.then(node.a11y()).padding((node.num("padding") ?: 0).dp),
         horizontalArrangement = Arrangement.spacedBy((node.num("spacing") ?: 8).dp),
       ) {
         node.children.forEach { NodeView(it, bridge) }
       }
     "text" ->
       Text(
+        modifier = node.a11y(),
         text = node.str("text") ?: "",
         fontSize = (node.num("font_size") ?: 15).sp,
         color = hexColor(node.str("text_color")) ?: Color.Unspecified,
         fontFamily = InterFamily,
       )
     "button" ->
-      Button(onClick = { node.str("on_click")?.let { bridge.sendEvent("click", it) } }) {
+      Button(
+        modifier = node.a11y(),
+        onClick = { node.str("on_click")?.let { bridge.sendEvent("click", it) } },
+      ) {
         Text(node.str("text") ?: "", fontFamily = InterFamily)
       }
     "box" -> {
-      var m: Modifier = Modifier
+      var m: Modifier = Modifier.then(node.a11y())
       node.num("corner_radius")?.let { m = m.clip(RoundedCornerShape(it.dp)) }
       hexColor(node.str("background"))?.let { m = m.background(it) }
       m = m.padding((node.num("padding") ?: 0).dp)
@@ -166,11 +215,12 @@ fun NodeView(node: RNode, bridge: Bridge) {
     // fill case is approximated with fillMaxSize.
     "spacer" ->
       when (val size = node.num("size")) {
-        null -> Spacer(Modifier.fillMaxSize())
-        else -> Spacer(Modifier.size(size.dp))
+        null -> Spacer(Modifier.then(node.a11y()).fillMaxSize())
+        else -> Spacer(Modifier.then(node.a11y()).size(size.dp))
       }
     "divider" ->
       Divider(
+        modifier = node.a11y(),
         color = hexColor(node.str("color")) ?: Color.Gray,
         thickness = (node.num("thickness") ?: 1).dp,
       )

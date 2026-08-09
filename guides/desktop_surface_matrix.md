@@ -204,14 +204,14 @@ other.
 | Drive controls over dist | ✅ | `Rext.Test.click/2`, `input/3` |
 | Works headlessly (no renderer) | ✅ | State is authoritative on the BEAM |
 | Screenshot over dist | ❌ | Agent cannot see a window today |
-| Accessibility-tree walk | ❌ | mob has this (`Mob.Test` reads the AX tree) and rext doesn't — the single highest-leverage gap for agentic work |
+| Accessibility-tree walk | 🟡 | `Rext.Test.native_tree/2` — a `describe`/`described` round-trip; the backend reports what it built, so a silently dropped node is visible. WinForms walks the **real** `Control` tree; SwiftUI/Compose report the branch taken (neither exposes an inspectable widget tree in-process) |
 | Synthetic OS-level event injection | ❌ | mob's "cocoon" ambition |
 
 ## Accessibility
 
 | Capability | Status | Notes |
 |--|--|--|
-| Accessibility labels on nodes | ❌ | Also the substrate for the AX-tree walk above — one build, two payoffs |
+| Accessibility labels on nodes | ✅ | `accessibility_label`, valid on every node type → `accessibilityLabel` / `contentDescription` / `AccessibleName`. Also the substrate for the AX-tree walk above |
 | Screen reader support | ❌ | VoiceOver / Narrator |
 | Keyboard-only operation | ❌ | Depends on focus + tab order |
 | High contrast / reduce motion | ❌ | |

@@ -85,6 +85,30 @@ defmodule Rext.Test do
   @spec connected?(node()) :: boolean()
   def connected?(node), do: :rpc.call(node, Rext.Bridge, :connected?, [])
 
+  @doc """
+  What the backend actually built for a window, as the backend reports it.
+
+  Every other function here reads the BEAM's own state, which is authoritative
+  about what rext *asked for* and says nothing about what was *drawn*. This asks
+  the renderer, so it's the only thing that catches a backend silently dropping
+  a node — an unhandled type, a frame that never arrived, a parse that failed.
+
+  Nodes come back as `%{"kind" => ..., "label" => ..., "children" => [...]}`,
+  where `kind` is the concrete widget the backend created. A node that fell
+  through to a backend's forward-compat branch says so, which is exactly the
+  case a green build hides.
+
+      iex> Rext.Test.native_tree(node)
+      {:ok, %{"kind" => "Column", "children" => [...]}}
+
+  `{:error, :no_renderer}` if nothing is drawing that window — expect this
+  headlessly, where the whole logical harness still works.
+  """
+  @spec native_tree(node(), String.t()) :: {:ok, map()} | {:error, :no_renderer | :timeout}
+  def native_tree(node, id \\ "main") do
+    :rpc.call(node, Rext.Bridge, :describe, [id])
+  end
+
   # ── internals ───────────────────────────────────────────────────────────────
 
   defp search(%{type: _} = node, sub, path) do

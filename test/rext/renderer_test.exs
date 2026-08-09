@@ -133,4 +133,29 @@ defmodule Rext.RendererTest do
       assert Renderer.normalize(node)["props"] == %{"color" => "#3a3a4a", "thickness" => 2}
     end
   end
+
+  describe "accessibility" do
+    test "accessibility_label passes through on any node type" do
+      for type <- [:column, :row, :text, :button, :box, :spacer, :divider] do
+        node = %{type: type, props: %{accessibility_label: "the thing"}, children: []}
+
+        assert Renderer.normalize(node)["props"]["accessibility_label"] == "the thing",
+               "#{type} dropped its accessibility label"
+      end
+    end
+
+    test "the label can be platform-scoped like any other prop" do
+      node = %{
+        type: :button,
+        props: %{accessibility_label: "Add", winforms: %{accessibility_label: "Add item"}},
+        children: []
+      }
+
+      mac = %{platform: :macos, backend: :swiftui}
+      win = %{platform: :windows, backend: :winforms}
+
+      assert Renderer.normalize(node, mac)["props"]["accessibility_label"] == "Add"
+      assert Renderer.normalize(node, win)["props"]["accessibility_label"] == "Add item"
+    end
+  end
 end

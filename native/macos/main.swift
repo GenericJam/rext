@@ -73,6 +73,33 @@ final class RenderState: ObservableObject {
         DispatchQueue.main.async { self.root = node }
     }
 
+    // What this renderer built, as it built it. SwiftUI exposes no inspectable
+    // view tree from inside the process, so `kind` is the concrete SwiftUI view
+    // the switch in NodeView produces for that node type — and crucially, a
+    // type we don't handle reports as "VStack(fallback)" rather than looking
+    // like it drew fine. That is the case a green build hides.
+    func describe(_ n: RNode?) -> Any {
+        guard let n = n else { return NSNull() }
+
+        let kind: String
+        switch n.type {
+        case "column": kind = "VStack"
+        case "row": kind = "HStack"
+        case "text": kind = "Text"
+        case "button": kind = "Button"
+        case "box": kind = "ZStack"
+        case "spacer": kind = "Spacer"
+        case "divider": kind = "Divider"
+        default: kind = "VStack(fallback)"
+        }
+
+        return [
+            "kind": kind,
+            "label": (n.str("accessibility_label") ?? NSNull()) as Any,
+            "children": n.children.map { describe($0) },
+        ]
+    }
+
     private func firstText(_ n: RNode) -> String? {
         if n.type == "text" { return n.str("text") }
         for c in n.children { if let t = firstText(c) { return t } }
@@ -94,11 +121,29 @@ func rextColor(_ hex: String?) -> Color? {
 
 // ── SwiftUI views ────────────────────────────────────────────────────────────
 
+// Applies the node's accessibility label to whatever view it wraps, so the
+// hook lives in one place instead of on every branch below.
+struct A11yLabel: ViewModifier {
+    let label: String?
+
+    func body(content: Content) -> some View {
+        if let label = label, !label.isEmpty {
+            content.accessibilityLabel(Text(label))
+        } else {
+            content
+        }
+    }
+}
+
 struct NodeView: View {
     let node: RNode
     @EnvironmentObject var state: RenderState
 
     var body: some View {
+        content.modifier(A11yLabel(label: node.str("accessibility_label")))
+    }
+
+    @ViewBuilder private var content: some View {
         switch node.type {
         case "column":
             VStack(alignment: .leading, spacing: node.num("spacing") ?? 8) {
@@ -231,7 +276,17 @@ final class Bridge {
             self.conn.receive(minimumIncompleteLength: Int(len), maximumLength: Int(len)) { body, _, _, err in
                 if let body = body, err == nil,
                    let obj = try? JSONSerialization.jsonObject(with: body) as? [String: Any] {
-                    self.state.apply(frame: obj)
+                    if obj["t"] as? String == "describe",
+                       obj["window"] as? String == self.state.target {
+                        self.sendRaw([
+                            "t": "described",
+                            "window": self.state.target,
+                            "ref": obj["ref"] as? String ?? "",
+                            "tree": self.state.describe(self.state.root),
+                        ])
+                    } else {
+                        self.state.apply(frame: obj)
+                    }
                 }
                 self.readFrame()
             }
