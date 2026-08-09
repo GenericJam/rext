@@ -87,7 +87,7 @@ composition over a fat component library (mob's rule, kept).
 | `row` | ✅ | ✓ | ✓ | ✓ | `HStack` / `FlowLayoutPanel`. Same prop gaps as `column` |
 | `text` | ✅ | ✓ | ✓ | ✓ | `Text` / `Label`. Has `text`, `size`, `color`; missing `font_weight`, `text_align` |
 | `button` | ✅ | ✓ | ✓ | ✓ | `Button` / `Button`. Has `label`, `on_click`, `color`; missing `disabled`, `corner_radius`, `fill_width`, `weight` |
-| `box` | 🟡 | ✓ | ✓ | ✓ | **Implemented on all three but undocumented in `render_protocol.md`** — spec it before anything else. `ZStack`+modifiers / `Panel`. WinForms has no native corner radius: needs an owner-drawn region or a platform-scoped fallback |
+| `box` | ❌ | — | — | — | Single-child container: background, padding, corner radius, border. `ZStack`+modifiers / `Panel` / `Box`+`Modifier`. WinForms has no native corner radius: needs an owner-drawn region or a platform-scoped fallback. **Caution:** `"box"` already appears in all three parsers as the *default* type for a node with no `type` field — it is not an implemented branch, and an untyped node silently becomes a "box" that isn't one. Fix that default as part of building this |
 | `spacer` | ❌ | — | — | — | `Spacer` / flex glue. Trivial and unblocks real layouts — do it first |
 | `scroll` | ❌ | — | — | — | `ScrollView` / `Panel{AutoScroll=true}`. Desktop also needs horizontal + a visible scrollbar policy prop, which mob's version lacks |
 | `divider` | ❌ | — | — | — | `Divider` / `Label{BorderStyle=Fixed3D, Height=2}` |
