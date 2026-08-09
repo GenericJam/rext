@@ -53,9 +53,10 @@ props: %{
 }
 ```
 
-Platform-scoped props are **not yet implemented** (see
-[Protocol & styling](#protocol--styling)) — this is the mechanism the rule
-depends on, so it's the first thing to build.
+Platform-scoped props are **implemented** (`Rext.Platform`, resolved in
+`Rext.Renderer`) on two axes — platform *and* backend (`compose:` / `swiftui:` /
+`winforms:`), since a missing switch control is a backend limitation while menu
+bar placement is an OS one. Precedence: unscoped < platform < backend.
 
 ---
 
@@ -83,14 +84,14 @@ composition over a fat component library (mob's rule, kept).
 
 | Component | Status | Compose | SwiftUI | WinForms | Native mapping / notes |
 |--|--|--|--|--|--|
-| `column` | ✅ | ✓ | ✓ | ✓ | `VStack` / `FlowLayoutPanel`. Has `gap`, `padding`, `background`; missing `align`, `fill_width`, `fill_height` from mob |
-| `row` | ✅ | ✓ | ✓ | ✓ | `HStack` / `FlowLayoutPanel`. Same prop gaps as `column` |
-| `text` | ✅ | ✓ | ✓ | ✓ | `Text` / `Label`. Has `text`, `size`, `color`; missing `font_weight`, `text_align` |
-| `button` | ✅ | ✓ | ✓ | ✓ | `Button` / `Button`. Has `label`, `on_click`, `color`; missing `disabled`, `corner_radius`, `fill_width`, `weight` |
-| `box` | ❌ | — | — | — | Single-child container: background, padding, corner radius, border. `ZStack`+modifiers / `Panel` / `Box`+`Modifier`. WinForms has no native corner radius: needs an owner-drawn region or a platform-scoped fallback. **Caution:** `"box"` already appears in all three parsers as the *default* type for a node with no `type` field — it is not an implemented branch, and an untyped node silently becomes a "box" that isn't one. Fix that default as part of building this |
-| `spacer` | ❌ | — | — | — | `Spacer` / flex glue. Trivial and unblocks real layouts — do it first |
+| `column` | ✅ | ✓ | ✓ | ✓ | `Column` / `VStack` / `FlowLayoutPanel`. Has `spacing`, `padding`, `background`; missing `align`, `fill_width`, `fill_height` from mob |
+| `row` | ✅ | ✓ | ✓ | ✓ | `Row` / `HStack` / `FlowLayoutPanel`. Same prop gaps as `column` |
+| `text` | ✅ | ✓ | ✓ | ✓ | `Text` / `Text` / `Label`. Has `text`, `font_size`, `text_color`; missing `font_weight`, `text_align` |
+| `button` | ✅ | ✓ | ✓ | ✓ | `Button` everywhere. Has `text`, `on_click`, `background` (SwiftUI only); missing `enabled`, `corner_radius`, `fill_width`, `weight` |
+| `box` | ✅ | ✓ | ✓ | ✓ | Container: `padding`, `background`, `corner_radius`, `fill_width`. `Box`+`Modifier` / `ZStack`+modifiers / `Panel`. **`corner_radius` is accepted and ignored on WinForms** — Win32 panels have none, and it is not faked with an owner-drawn region; scope it with `winforms:` if an app needs the difference explicit. The parsers' phantom `"box"` default type is gone (now `"unknown"`) |
+| `spacer` | ✅ | ✓ | ✓ | ✓ | `Spacer` both places / a zero-size docked `Panel`. `size` for fixed space; omit it to fill the remaining space along the parent's axis |
 | `scroll` | ❌ | — | — | — | `ScrollView` / `Panel{AutoScroll=true}`. Desktop also needs horizontal + a visible scrollbar policy prop, which mob's version lacks |
-| `divider` | ❌ | — | — | — | `Divider` / `Label{BorderStyle=Fixed3D, Height=2}` |
+| `divider` | ✅ | ✓ | ✓ | ✓ | `Divider` both places / a docked `Label` with a `BackColor`. `color`, `thickness` |
 | `text_field` | ❌ | — | — | — | `TextField`/`SecureField` / `TextBox`. Already named "Planned" in `render_protocol.md`. Desktop needs `on_focus`/`on_blur` and text selection; drop mob's `keyboard_type` (mobile-only) |
 | `toggle` | ❌ | — | — | — | `Toggle` / `CheckBox`. **WinForms has no switch control** — a Win32 `CheckBox` is the honest native answer; a switch look would be owner-drawn. Decide: platform-scoped, or accept the checkbox |
 | `checkbox` | ❌ | — | — | — | Desktop splits these where mobile doesn't: `Toggle{.checkbox}` / `CheckBox`. Distinct from `toggle` |

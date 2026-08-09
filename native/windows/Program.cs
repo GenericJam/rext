@@ -55,7 +55,7 @@ internal sealed class RenderForm : Form
 
     private Control BuildControl(JsonElement node)
     {
-        string type = node.TryGetProperty("type", out var t) ? t.GetString() ?? "box" : "box";
+        string type = node.TryGetProperty("type", out var t) ? t.GetString() ?? "unknown" : "unknown";
         var props = node.TryGetProperty("props", out var pr) ? pr : default;
         var children = node.TryGetProperty("children", out var ch) ? ch : default;
 
@@ -119,6 +119,58 @@ internal sealed class RenderForm : Form
 
                 return btn;
             }
+            case "box":
+            {
+                // WinForms Panel has no corner radius. corner_radius is
+                // accepted and ignored rather than faked with an owner-drawn
+                // region — scope it with winforms: %{...} if an app needs the
+                // difference to be explicit.
+                var panel = new Panel
+                {
+                    AutoSize = true,
+                    Padding = new Padding(Num(props, "padding") ?? 0),
+                };
+                if (HexColor(Str(props, "background")) is { } boxBg)
+                {
+                    panel.BackColor = boxBg;
+                }
+
+                if (Bool(props, "fill_width") == true)
+                {
+                    panel.Dock = DockStyle.Top;
+                }
+
+                if (children.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var c in children.EnumerateArray())
+                    {
+                        panel.Controls.Add(BuildControl(c));
+                    }
+                }
+
+                return panel;
+            }
+            case "spacer":
+            {
+                // No size => fill remaining space along the parent's axis.
+                int? size = Num(props, "size");
+                return new Panel
+                {
+                    Size = size is { } s2 ? new Size(s2, s2) : new Size(0, 0),
+                    Dock = size is null ? DockStyle.Fill : DockStyle.None,
+                };
+            }
+            case "divider":
+            {
+                var rule = new Label
+                {
+                    AutoSize = false,
+                    Height = Num(props, "thickness") ?? 1,
+                    Dock = DockStyle.Top,
+                    BackColor = HexColor(Str(props, "color")) ?? Color.Gray,
+                };
+                return rule;
+            }
             default:
             {
                 var box = new FlowLayoutPanel { FlowDirection = FlowDirection.TopDown, Dock = DockStyle.Fill };
@@ -145,6 +197,12 @@ internal sealed class RenderForm : Form
         props.ValueKind == JsonValueKind.Object && props.TryGetProperty(key, out var v) &&
         v.ValueKind == JsonValueKind.Number
             ? v.GetInt32()
+            : null;
+
+    private static bool? Bool(JsonElement props, string key) =>
+        props.ValueKind == JsonValueKind.Object && props.TryGetProperty(key, out var v) &&
+        v.ValueKind is JsonValueKind.True or JsonValueKind.False
+            ? v.GetBoolean()
             : null;
 
     private static Color? HexColor(string? s)

@@ -99,4 +99,38 @@ defmodule Rext.RendererTest do
       assert child["props"]["text"] == "hello"
     end
   end
+
+  describe "container and layout components" do
+    test "box props survive normalization, including the WinForms-ignored one" do
+      node = %{
+        type: :box,
+        props: %{padding: :space_md, background: :surface, corner_radius: 8, fill_width: true},
+        children: [%{type: :text, props: %{text: "in a box"}, children: []}]
+      }
+
+      %{"props" => props, "children" => [child]} = Renderer.normalize(node)
+
+      assert props == %{
+               "padding" => 16,
+               "background" => "#2a2a38",
+               "corner_radius" => 8,
+               "fill_width" => true
+             }
+
+      assert child["props"]["text"] == "in a box"
+    end
+
+    test "a spacer with no size stays sizeless — the backend reads that as 'fill'" do
+      assert Renderer.normalize(%{type: :spacer, props: %{}, children: []})["props"] == %{}
+
+      assert Renderer.normalize(%{type: :spacer, props: %{size: 16}, children: []})["props"] == %{
+               "size" => 16
+             }
+    end
+
+    test "divider resolves its color token" do
+      node = %{type: :divider, props: %{color: :border, thickness: 2}, children: []}
+      assert Renderer.normalize(node)["props"] == %{"color" => "#3a3a4a", "thickness" => 2}
+    end
+  end
 end

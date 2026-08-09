@@ -11,14 +11,22 @@
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.Divider
 import androidx.compose.material.Button
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.painter.Painter
@@ -47,12 +55,14 @@ class RNode(val type: String, private val props: JSONObject, val children: List<
   fun str(k: String): String? = if (props.has(k)) props.optString(k) else null
   fun num(k: String): Int? = if (props.has(k)) props.optInt(k) else null
 
+  fun bool(k: String): Boolean? = if (props.has(k)) props.optBoolean(k) else null
+
   companion object {
     fun parse(o: JSONObject): RNode {
       val kids = ArrayList<RNode>()
       val arr = o.optJSONArray("children") ?: JSONArray()
       for (i in 0 until arr.length()) kids.add(parse(arr.getJSONObject(i)))
-      return RNode(o.optString("type", "box"), o.optJSONObject("props") ?: JSONObject(), kids)
+      return RNode(o.optString("type", "unknown"), o.optJSONObject("props") ?: JSONObject(), kids)
     }
   }
 }
@@ -143,6 +153,27 @@ fun NodeView(node: RNode, bridge: Bridge) {
       Button(onClick = { node.str("on_click")?.let { bridge.sendEvent("click", it) } }) {
         Text(node.str("text") ?: "", fontFamily = InterFamily)
       }
+    "box" -> {
+      var m: Modifier = Modifier
+      node.num("corner_radius")?.let { m = m.clip(RoundedCornerShape(it.dp)) }
+      hexColor(node.str("background"))?.let { m = m.background(it) }
+      m = m.padding((node.num("padding") ?: 0).dp)
+      if (node.bool("fill_width") == true) m = m.fillMaxWidth()
+      Box(modifier = m) { node.children.forEach { NodeView(it, bridge) } }
+    }
+    // No size => fill the remaining space along the parent's axis. weight()
+    // only exists inside a Row/Column scope, which NodeView isn't, so the
+    // fill case is approximated with fillMaxSize.
+    "spacer" ->
+      when (val size = node.num("size")) {
+        null -> Spacer(Modifier.fillMaxSize())
+        else -> Spacer(Modifier.size(size.dp))
+      }
+    "divider" ->
+      Divider(
+        color = hexColor(node.str("color")) ?: Color.Gray,
+        thickness = (node.num("thickness") ?: 1).dp,
+      )
     else -> Column { node.children.forEach { NodeView(it, bridge) } }
   }
 }

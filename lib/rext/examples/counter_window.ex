@@ -18,10 +18,22 @@ defmodule Rext.Examples.CounterWindow do
       props: %{spacing: :space_lg, padding: :space_xl, background: :background},
       children: [
         %{
-          type: :text,
-          props: %{text: "Count: #{assigns.count}", font_size: 34, text_color: :on_background},
-          children: []
+          type: :box,
+          props: %{background: :surface, padding: :space_lg, corner_radius: 12, fill_width: true},
+          children: [
+            %{
+              type: :text,
+              props: %{
+                text: "Count: #{assigns.count}",
+                font_size: 34,
+                text_color: :on_background
+              },
+              children: []
+            }
+          ]
         },
+        %{type: :divider, props: %{color: :border}, children: []},
+        %{type: :spacer, props: %{size: 8}, children: []},
         %{
           type: :row,
           props: %{spacing: :space_md},

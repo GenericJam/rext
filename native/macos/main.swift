@@ -34,13 +34,14 @@ final class RNode: Identifiable {
     }
 
     static func parse(_ dict: [String: Any]) -> RNode {
-        let type = dict["type"] as? String ?? "box"
+        let type = dict["type"] as? String ?? "unknown"
         let props = dict["props"] as? [String: Any] ?? [:]
         let kids = (dict["children"] as? [[String: Any]] ?? []).map { RNode.parse($0) }
         return RNode(type: type, props: props, children: kids)
     }
 
     func str(_ key: String) -> String? { props[key] as? String }
+    func bool(_ key: String) -> Bool? { props[key] as? Bool }
     func num(_ key: String) -> CGFloat? {
         if let n = props[key] as? NSNumber { return CGFloat(truncating: n) }
         return nil
@@ -129,6 +130,28 @@ struct NodeView: View {
             .background(rextColor(node.str("background")) ?? Color.gray.opacity(0.3))
             .foregroundColor(.white)
             .cornerRadius(8)
+
+        case "box":
+            // ZStack + modifiers is SwiftUI's container idiom; corner radius
+            // clips the background, so order matters here.
+            ZStack { ForEach(node.children) { NodeView(node: $0) } }
+                .padding(node.num("padding") ?? 0)
+                .background(rextColor(node.str("background")))
+                .cornerRadius(node.num("corner_radius") ?? 0)
+                .frame(maxWidth: node.bool("fill_width") == true ? .infinity : nil)
+
+        case "spacer":
+            // No size => fill remaining space, which is Spacer's default.
+            if let size = node.num("size") {
+                Spacer().frame(width: size, height: size)
+            } else {
+                Spacer()
+            }
+
+        case "divider":
+            Divider()
+                .frame(height: node.num("thickness") ?? 1)
+                .background(rextColor(node.str("color")) ?? Color.gray)
 
         default:
             VStack { ForEach(node.children) { NodeView(node: $0) } }

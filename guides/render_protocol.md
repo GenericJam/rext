@@ -68,6 +68,9 @@ Every node has string `type`, a `props` object (string keys), and `children`.
 | `row`   | `spacing`, `padding`, `background` | horizontal stack |
 | `text`  | `text` (string), `font_size` (px int), `text_color` (hex) | |
 | `button`| `text` (string), `on_click` (tag string), `background` (hex) | emits `click` with `tag`. `background` honored on SwiftUI only |
+| `box`   | `padding`, `background` (hex), `corner_radius` (px int), `fill_width` (bool) | container. `corner_radius` accepted-and-ignored on WinForms — Win32 panels have none |
+| `spacer`| `size` (px int) | fixed space; omit `size` to fill the remaining space along the parent's axis |
+| `divider`| `color` (hex), `thickness` (px int, default 1) | horizontal rule |
 
 Prop names follow Compose + SwiftUI — see
 `decisions/2026-08-08-component-nomenclature.md` for the vocabulary and the
