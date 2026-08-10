@@ -166,13 +166,19 @@ struct TextFieldNode: View {
         field(placeholder)
             .textFieldStyle(.roundedBorder)
             .onAppear {
-                applyingRemote = true
-                text = incoming
+                // Only arm the guard if this actually changes the text. Arming
+                // it for a no-op assignment (the common case: empty field, empty
+                // value) leaves it set, and it then eats the user's first
+                // keystroke instead of the echo it was meant to catch.
+                if text != incoming {
+                    applyingRemote = true
+                    text = incoming
+                }
             }
             .onChange(of: incoming) { _, new in
                 // Adopt a server value only when it is not the echo of our own
                 // last edit — otherwise every keystroke fights the round-trip.
-                if new != lastSent {
+                if new != lastSent, new != text {
                     applyingRemote = true
                     text = new
                     lastSent = new
