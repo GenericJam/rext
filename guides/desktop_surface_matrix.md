@@ -125,7 +125,7 @@ Almost none of this exists in mob, and almost none of it is built here yet.
 | Window title | ✅ | ✓ | ✓ | ✓ | `:title` option |
 | Initial size | ✅ | ✓ | ✓ | ✓ | `:size` option |
 | Window icon | 🟡 | ✓ | — | — | Compose only, via `REXT_ICON` |
-| **One renderer draws one window** | ✅ | ✓ | ✓ | ✓ | The bridge fans out to many renderers, each bound to the window it names in `hello`; `mix rext.run` launches one per declared window and halts only when the last detaches. See `decisions/2026-08-09-multi-window-rendering.md`. Routing verified end-to-end; **pixels not yet seen** |
+| **One renderer draws one window** | ✅ | ✓ | ✓ | ✓ | The bridge fans out to many renderers, each bound to the window it names in `hello`; `mix rext.run` launches one per declared window and halts only when the last detaches. See `decisions/2026-08-09-multi-window-rendering.md`. **Visually verified on macOS 2026-08-09**: two windows on screen at once, the second tracking the first live |
 | Close / minimize / maximize from Elixir | ❌ | — | — | — | Programmatic control of window state |
 | Resizable / min / max size | ❌ | — | — | — | Constraint props at open time |
 | Window position + restore | ❌ | — | — | — | Save/restore geometry across launches |

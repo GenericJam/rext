@@ -106,9 +106,17 @@ Mitigation: **bundle a font** with the renderer so text doesn't vary by OS.
    upgrade for Windows is a later option if the native feel needs to be more
    modern.
 4. ✅ **Multi-window rendering** — the bridge fans out to one renderer per
-   window (`decisions/2026-08-09-multi-window-rendering.md`). Routing verified
-   end-to-end against `rext_demo`; a human visual pass on two simultaneous
-   windows is the outstanding piece.
+   window (`decisions/2026-08-09-multi-window-rendering.md`). **Visually
+   verified on macOS**: two windows on screen at once, the second tracking the
+   first live, with `box`/`spacer`/`divider`/`text_field` all drawing. Compose
+   and WinForms have not had the same pass for these components.
+
+   The pass earned its keep immediately — it found three renderer bugs that
+   every other check was blind to (per-parse view identity destroying focus and
+   spinning a render loop; an echo guard eating the first keystroke; renderers
+   orphaned after their BEAM died). All three were invisible from the BEAM,
+   which saw well-formed state and well-formed events throughout. This is the
+   concrete case for the harness work in item 5.
 5. **Per-platform agent visual verification** — the harness upgrade above (the
    investment that removes the human from the pixel-checking loop).
 6. ~~**rext_mcp**~~ — **not pursued.** Agents drive rext via `mix rext.connect` +
