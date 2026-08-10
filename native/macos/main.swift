@@ -312,6 +312,7 @@ final class Bridge {
             switch st {
             case .ready:
                 self.wasReady = true
+                eprint("connected; hello window=\(self.state.target)")
                 self.sendRaw(["t": "hello", "renderer": "macos-swiftui", "window": self.state.target])
                 self.readFrame()
             case .failed, .cancelled:
@@ -322,6 +323,7 @@ final class Bridge {
         }
         state.send = { [weak self] event, tag, value in
             guard let self = self else { return }
+            eprint("send event=\(event) tag=\(tag) value=\(value.debugDescription)")
             self.sendRaw([
                 "t": "event", "window": self.state.target,
                 "event": event, "tag": tag, "value": value,
