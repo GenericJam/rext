@@ -336,6 +336,16 @@ final class Bridge {
     private func quit(_ reason: String) {
         eprint("\(reason) — quitting renderer")
         DispatchQueue.main.async { NSApp.terminate(nil) }
+
+        // NSApp.terminate only runs if the main thread is servicing its run
+        // loop. A wedged main thread would leave the renderer alive with no
+        // bridge — orphaned GUI processes that outlive their BEAM and have to
+        // be killed by hand. Losing the bridge is unconditionally fatal here,
+        // so back the graceful path with a hard exit.
+        DispatchQueue.global().asyncAfter(deadline: .now() + 2) {
+            eprint("terminate did not take effect — exiting hard")
+            exit(0)
+        }
     }
 
     private func readFrame() {
