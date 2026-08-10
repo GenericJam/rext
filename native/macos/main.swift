@@ -22,22 +22,32 @@ func eprint(_ s: String) {
 // ── Render-tree model ────────────────────────────────────────────────────────
 
 final class RNode: Identifiable {
-    let id = UUID()
+    // Identity is the node's *path* in the tree ("0.2.1"), not a fresh UUID.
+    // A frame arrives on every state change and is re-parsed from scratch, so
+    // per-parse identity makes ForEach treat every node as new: SwiftUI tears
+    // the hierarchy down and rebuilds it each frame. That drops keyboard focus
+    // after a single keystroke, and — because a rebuilt TextField re-runs
+    // onAppear, which fires onChange, which sends another event — spins the
+    // bridge in a render/event loop.
+    let id: String
     let type: String
     let props: [String: Any]
     let children: [RNode]
 
-    init(type: String, props: [String: Any], children: [RNode]) {
+    init(id: String, type: String, props: [String: Any], children: [RNode]) {
+        self.id = id
         self.type = type
         self.props = props
         self.children = children
     }
 
-    static func parse(_ dict: [String: Any]) -> RNode {
+    static func parse(_ dict: [String: Any], path: String = "0") -> RNode {
         let type = dict["type"] as? String ?? "unknown"
         let props = dict["props"] as? [String: Any] ?? [:]
-        let kids = (dict["children"] as? [[String: Any]] ?? []).map { RNode.parse($0) }
-        return RNode(type: type, props: props, children: kids)
+        let kids = (dict["children"] as? [[String: Any]] ?? [])
+            .enumerated()
+            .map { RNode.parse($1, path: "\(path).\($0)") }
+        return RNode(id: path, type: type, props: props, children: kids)
     }
 
     func str(_ key: String) -> String? { props[key] as? String }
@@ -145,6 +155,9 @@ struct TextFieldNode: View {
     @EnvironmentObject var state: RenderState
     @State private var text = ""
     @State private var lastSent: String?
+    // True while applying a server value, so the resulting text change isn't
+    // mistaken for the user typing and echoed straight back.
+    @State private var applyingRemote = false
 
     var body: some View {
         let incoming = node.str("value") ?? ""
@@ -152,13 +165,25 @@ struct TextFieldNode: View {
 
         field(placeholder)
             .textFieldStyle(.roundedBorder)
-            .onAppear { text = incoming }
+            .onAppear {
+                applyingRemote = true
+                text = incoming
+            }
             .onChange(of: incoming) { _, new in
                 // Adopt a server value only when it is not the echo of our own
                 // last edit — otherwise every keystroke fights the round-trip.
-                if new != lastSent { text = new }
+                if new != lastSent {
+                    applyingRemote = true
+                    text = new
+                    lastSent = new
+                }
             }
             .onChange(of: text) { _, new in
+                if applyingRemote {
+                    applyingRemote = false
+                    return
+                }
+
                 lastSent = new
                 if let tag = node.str("on_change") { state.send?("change", tag, new) }
             }
