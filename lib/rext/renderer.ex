@@ -49,7 +49,7 @@ defmodule Rext.Renderer do
   # that have no text (divider, progress) where "the color" is unambiguous.
   @color_props ~w(text_color color background border_color)a
   @space_props ~w(spacing padding)a
-  @event_props ~w(on_click on_change)a
+  @event_props ~w(on_click on_change on_submit)a
 
   @scope_props Platform.platforms() ++ Platform.backends()
 

@@ -52,7 +52,8 @@ The backend ignores frames whose `"window"` ≠ its `REXT_WINDOW`.
 ```json
 {"t": "event", "window": "main", "event": "click", "tag": "inc"}
 ```
-- `event`: `"click"` (buttons) or `"change"` (inputs; carries `"value"`).
+- `event`: `"click"` (buttons), `"change"` (inputs; carries `"value"`), or
+  `"submit"` (Enter in a `text_field`; carries the field's `"value"`).
 - `tag`: the control's `on_click` / `on_change` tag.
 - `window`: the backend's target window id.
 
@@ -108,6 +109,7 @@ Every node has string `type`, a `props` object (string keys), and `children`.
 | `box`   | `padding`, `background` (hex), `corner_radius` (px int), `fill_width` (bool) | container. `corner_radius` accepted-and-ignored on WinForms — Win32 panels have none |
 | `spacer`| `size` (px int) | fixed space; omit `size` to fill the remaining space along the parent's axis |
 | `divider`| `color` (hex), `thickness` (px int, default 1) | horizontal rule |
+| `text_field`| `value` (string), `placeholder` (string), `on_change` (tag), `on_submit` (tag), `secure` (bool) | emits `change` with `tag` + `value`; `on_submit` fires on Enter. The backend keeps the live text locally and adopts an incoming `value` only when it isn't the echo of its own last edit — binding straight to the server value moves the caret on every keystroke |
 
 ### Universal props
 
@@ -151,8 +153,6 @@ genuinely different questions here.
 This is what keeps a capability gap from becoming a vocabulary amputation: a
 prop the weakest backend can't honor stays in the protocol, scoped, rather than
 being removed from it for everyone.
-
-Planned: `text_field` (`value`, `placeholder`, `on_change` tag → `change` events).
 
 Unknown `type`s should render their `children` in a plain container (forward-compat).
 

@@ -65,6 +65,7 @@ defmodule Rext.Window do
   # ── GenServer wrapper ─────────────────────────────────────────────────────
 
   use GenServer
+  require Logger
 
   @doc """
   Start a window process. Options: `:id`, `:title`, `:size`, and `:name` for
@@ -154,10 +155,37 @@ defmodule Rext.Window do
 
   defp render_and_push(module, socket) do
     tree = module.render(socket.assigns)
+    warn_unknown_props(tree)
     socket = Rext.Socket.put_rext(socket, :tree, tree)
     t = Rext.Transport.impl()
     if t.available?(), do: t.render(Rext.Socket.id(socket), tree)
     socket
+  end
+
+  # A misspelled prop otherwise does nothing at all, silently — the worst
+  # failure mode for a framework meant to be driven by agents, which get a green
+  # build and a rendered window as their only feedback.
+  #
+  # Warn once per {type, prop} per window: a window re-renders on every event,
+  # and a warning per frame would bury the signal it exists to give. The window
+  # process dictionary is the right scope for that — it dies with the window, so
+  # a restarted window reports afresh.
+  defp warn_unknown_props(tree) do
+    if Application.get_env(:rext, :validate_props, true) do
+      for {type, prop} <- Rext.Catalog.unknown_props(tree),
+          Process.get({:rext_warned, type, prop}) == nil do
+        Process.put({:rext_warned, type, prop}, true)
+
+        # Kernel.inspect/1 explicitly: this module defines its own inspect/1
+        # for window introspection, which would otherwise win the name.
+        Logger.warning(
+          "[rext] unknown prop #{Kernel.inspect(prop)} on #{Kernel.inspect(type)} — " <>
+            "valid: #{Kernel.inspect(Rext.Catalog.props(type) ++ Rext.Catalog.universal())}"
+        )
+      end
+    end
+
+    :ok
   end
 
   defp register_with_bridge(socket) do

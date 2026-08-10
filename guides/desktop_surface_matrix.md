@@ -92,7 +92,7 @@ composition over a fat component library (mob's rule, kept).
 | `spacer` | ✅ | ✓ | ✓ | ✓ | `Spacer` both places / a zero-size docked `Panel`. `size` for fixed space; omit it to fill the remaining space along the parent's axis |
 | `scroll` | ❌ | — | — | — | `ScrollView` / `Panel{AutoScroll=true}`. Desktop also needs horizontal + a visible scrollbar policy prop, which mob's version lacks |
 | `divider` | ✅ | ✓ | ✓ | ✓ | `Divider` both places / a docked `Label` with a `BackColor`. `color`, `thickness` |
-| `text_field` | ❌ | — | — | — | `TextField`/`SecureField` / `TextBox`. Already named "Planned" in `render_protocol.md`. Desktop needs `on_focus`/`on_blur` and text selection; drop mob's `keyboard_type` (mobile-only) |
+| `text_field` | ✅ | ✓ | ✓ | ✓ | `OutlinedTextField` / `TextField`+`SecureField` / `TextBox`. `value`, `placeholder`, `on_change`, `on_submit`, `secure`. mob's `keyboard_type` dropped (mobile-only). `on_focus`/`on_blur` deferred to the keyboard-focus work |
 | `toggle` | ❌ | — | — | — | `Toggle` / `CheckBox`. **WinForms has no switch control** — a Win32 `CheckBox` is the honest native answer; a switch look would be owner-drawn. Decide: platform-scoped, or accept the checkbox |
 | `checkbox` | ❌ | — | — | — | Desktop splits these where mobile doesn't: `Toggle{.checkbox}` / `CheckBox`. Distinct from `toggle` |
 | `radio_group` | ❌ | — | — | — | `Picker{.radioGroup}` / `RadioButton` set. No mob equivalent |
@@ -186,7 +186,7 @@ The seam everything above depends on.
 | Radius tokens | ❌ | mob has `:radius_sm/md`; `box` and `button` need them |
 | Text-size / weight tokens | ❌ | mob has `:base` etc.; `text` takes raw px only |
 | **Platform-scoped props** (`macos:`/`windows:`/`linux:`) | ✅ | Two axes: platform *and* backend (`compose:`/`swiftui:`/`winforms:`), since Compose is the baseline everywhere and natives are an opt-in upgrade. Precedence unscoped < platform < backend; resolved in `Rext.Renderer` and stripped before the wire, so backends see one flat prop set. `Rext.Platform` |
-| Prop validation / unknown-prop diagnostics | ❌ | `Rext.Renderer.normalize/1` accepts any map; typos fail silently |
+| Prop validation / unknown-prop diagnostics | ✅ | `Rext.Catalog` + a warn-once-per-window check in `Rext.Window`. Reports, never drops — a newer backend may know a prop this BEAM doesn't |
 | Component catalog kept in sync with backends | ❌ | Already drifted: `box` ships on all three, documented on none |
 | Template sigil (`~UI`) | ❌ | mob has `~MOB` with `:if`/`:for`. rext writes raw maps — verbose, and the gap most visible to a new user |
 | Composite / reusable components | ❌ | mob has function + tag composites |

@@ -52,7 +52,8 @@ final class RNode: Identifiable {
 
 final class RenderState: ObservableObject {
     @Published var root: RNode?
-    var send: ((String, String) -> Void)?
+    // event, tag, value — value is "" for valueless events like a click.
+    var send: ((String, String, String) -> Void)?
 
     // Which window this renderer draws. One renderer surface per window is the
     // desktop model; frames for other windows (a multi-window app pushes several
@@ -90,6 +91,7 @@ final class RenderState: ObservableObject {
         case "box": kind = "ZStack"
         case "spacer": kind = "Spacer"
         case "divider": kind = "Divider"
+        case "text_field": kind = "TextField"
         default: kind = "VStack(fallback)"
         }
 
@@ -135,6 +137,45 @@ struct A11yLabel: ViewModifier {
     }
 }
 
+// Text input keeps local state: the field is the live thing the user is typing
+// into, and the BEAM's value is an echo that arrives a round-trip later. Binding
+// straight to the incoming value would move the caret on every keystroke.
+struct TextFieldNode: View {
+    let node: RNode
+    @EnvironmentObject var state: RenderState
+    @State private var text = ""
+    @State private var lastSent: String?
+
+    var body: some View {
+        let incoming = node.str("value") ?? ""
+        let placeholder = node.str("placeholder") ?? ""
+
+        field(placeholder)
+            .textFieldStyle(.roundedBorder)
+            .onAppear { text = incoming }
+            .onChange(of: incoming) { _, new in
+                // Adopt a server value only when it is not the echo of our own
+                // last edit — otherwise every keystroke fights the round-trip.
+                if new != lastSent { text = new }
+            }
+            .onChange(of: text) { _, new in
+                lastSent = new
+                if let tag = node.str("on_change") { state.send?("change", tag, new) }
+            }
+            .onSubmit {
+                if let tag = node.str("on_submit") { state.send?("submit", tag, text) }
+            }
+    }
+
+    @ViewBuilder private func field(_ placeholder: String) -> some View {
+        if node.bool("secure") == true {
+            SecureField(placeholder, text: $text)
+        } else {
+            TextField(placeholder, text: $text)
+        }
+    }
+}
+
 struct NodeView: View {
     let node: RNode
     @EnvironmentObject var state: RenderState
@@ -166,7 +207,7 @@ struct NodeView: View {
 
         case "button":
             Button(action: {
-                if let tag = node.str("on_click") { state.send?("click", tag) }
+                if let tag = node.str("on_click") { state.send?("click", tag, "") }
             }) {
                 Text(node.str("text") ?? "")
                     .padding(.horizontal, 14).padding(.vertical, 8)
@@ -192,6 +233,9 @@ struct NodeView: View {
             } else {
                 Spacer()
             }
+
+        case "text_field":
+            TextFieldNode(node: node)
 
         case "divider":
             Divider()
@@ -251,9 +295,12 @@ final class Bridge {
                 break
             }
         }
-        state.send = { [weak self] event, tag in
+        state.send = { [weak self] event, tag, value in
             guard let self = self else { return }
-            self.sendRaw(["t": "event", "window": self.state.target, "event": event, "tag": tag])
+            self.sendRaw([
+                "t": "event", "window": self.state.target,
+                "event": event, "tag": tag, "value": value,
+            ])
         }
         conn.start(queue: .global())
     }

@@ -36,6 +36,9 @@ internal sealed class RenderForm : Form
 {
     public Action<string, string>? SendEvent;
 
+    // event, tag, value — for controls that carry one (text_field).
+    public Action<string, string, string>? SendValueEvent;
+
     public RenderForm(string title)
     {
         Text = title.Length > 0 ? char.ToUpper(title[0]) + title[1..] : title;
@@ -175,6 +178,39 @@ internal sealed class RenderForm : Form
                     Dock = size is null ? DockStyle.Fill : DockStyle.None,
                 };
             }
+            case "text_field":
+            {
+                // The TextBox is the live thing being typed into; the BEAM's
+                // value arrives a round-trip later. Only adopt an incoming
+                // value that isn't the echo of our own last edit, or the caret
+                // jumps to the end on every keystroke.
+                var box = new TextBox
+                {
+                    Text = Str(props, "value") ?? "",
+                    PlaceholderText = Str(props, "placeholder") ?? "",
+                    UseSystemPasswordChar = Bool(props, "secure") == true,
+                    Width = 220,
+                };
+
+                if (Str(props, "on_change") is { } changeTag)
+                {
+                    box.TextChanged += (_, _) => SendValueEvent?.Invoke("change", changeTag, box.Text);
+                }
+
+                if (Str(props, "on_submit") is { } submitTag)
+                {
+                    box.KeyDown += (_, e) =>
+                    {
+                        if (e.KeyCode == Keys.Enter)
+                        {
+                            e.SuppressKeyPress = true;
+                            SendValueEvent?.Invoke("submit", submitTag, box.Text);
+                        }
+                    };
+                }
+
+                return box;
+            }
             case "divider":
             {
                 var rule = new Label
@@ -253,6 +289,7 @@ internal sealed class Bridge
     public void Start()
     {
         _form.SendEvent = SendEvent;
+        _form.SendValueEvent = SendValueEvent;
         new Thread(Loop) { IsBackground = true }.Start();
     }
 
@@ -323,8 +360,12 @@ internal sealed class Bridge
                $"\"children\":[{string.Join(",", kids)}]}}";
     }
 
-    private void SendEvent(string ev, string tag) =>
-        Send($"{{\"t\":\"event\",\"window\":\"{_target}\",\"event\":\"{ev}\",\"tag\":\"{tag}\"}}");
+    private void SendEvent(string ev, string tag) => SendValueEvent(ev, tag, "");
+
+    private void SendValueEvent(string ev, string tag, string value) =>
+        Send(
+            $"{{\"t\":\"event\",\"window\":\"{_target}\",\"event\":\"{ev}\"," +
+            $"\"tag\":\"{tag}\",\"value\":\"{JsonEncodedText.Encode(value)}\"}}");
 
     private void Send(string json)
     {

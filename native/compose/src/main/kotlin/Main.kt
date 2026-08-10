@@ -21,10 +21,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Divider
+import androidx.compose.material.OutlinedTextField
 import androidx.compose.material.Button
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -34,6 +38,8 @@ import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.platform.Font
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -133,6 +139,7 @@ class Bridge(private val port: Int, val target: String) {
         "box" -> "Box"
         "spacer" -> "Spacer"
         "divider" -> "Divider"
+        "text_field" -> "OutlinedTextField"
         else -> "Column(fallback)"
       }
 
@@ -144,8 +151,15 @@ class Bridge(private val port: Int, val target: String) {
       .put("children", kids)
   }
 
-  fun sendEvent(event: String, tag: String) {
-    send(JSONObject().put("t", "event").put("window", target).put("event", event).put("tag", tag))
+  fun sendEvent(event: String, tag: String, value: String = "") {
+    send(
+      JSONObject()
+        .put("t", "event")
+        .put("window", target)
+        .put("event", event)
+        .put("tag", tag)
+        .put("value", value),
+    )
   }
 
   private fun send(o: JSONObject) {
@@ -218,6 +232,7 @@ fun NodeView(node: RNode, bridge: Bridge) {
         null -> Spacer(Modifier.then(node.a11y()).fillMaxSize())
         else -> Spacer(Modifier.then(node.a11y()).size(size.dp))
       }
+    "text_field" -> TextFieldNode(node, bridge)
     "divider" ->
       Divider(
         modifier = node.a11y(),
@@ -226,6 +241,33 @@ fun NodeView(node: RNode, bridge: Bridge) {
       )
     else -> Column { node.children.forEach { NodeView(it, bridge) } }
   }
+}
+
+// Text input keeps local state: the field is the live thing being typed into,
+// and the BEAM's value is an echo arriving a round-trip later. Binding straight
+// to the incoming value would fight the caret on every keystroke.
+@Composable
+fun TextFieldNode(node: RNode, bridge: Bridge) {
+  val incoming = node.str("value") ?: ""
+  var text by remember { mutableStateOf(incoming) }
+  var lastSent by remember { mutableStateOf<String?>(null) }
+
+  // Adopt a server value only when it is not the echo of our own last edit.
+  if (incoming != lastSent && incoming != text) text = incoming
+
+  OutlinedTextField(
+    modifier = node.a11y(),
+    value = text,
+    onValueChange = {
+      text = it
+      lastSent = it
+      node.str("on_change")?.let { tag -> bridge.sendEvent("change", tag, it) }
+    },
+    placeholder = { Text(node.str("placeholder") ?: "", fontFamily = InterFamily) },
+    singleLine = true,
+    visualTransformation =
+      if (node.bool("secure") == true) PasswordVisualTransformation() else VisualTransformation.None,
+  )
 }
 
 // Optional per-app branding: REXT_ICON points at any image file loadable by

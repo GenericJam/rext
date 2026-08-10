@@ -158,4 +158,26 @@ defmodule Rext.RendererTest do
       assert Renderer.normalize(node, win)["props"]["accessibility_label"] == "Add item"
     end
   end
+
+  describe "text_field" do
+    test "value, placeholder and secure survive normalization" do
+      node = %{
+        type: :text_field,
+        props: %{value: "hi", placeholder: "Name", secure: true, on_change: :typed},
+        children: []
+      }
+
+      assert Renderer.normalize(node)["props"] == %{
+               "value" => "hi",
+               "placeholder" => "Name",
+               "secure" => true,
+               "on_change" => "typed"
+             }
+    end
+
+    test "on_submit reduces to its tag like any other event prop" do
+      node = %{type: :text_field, props: %{on_submit: {self(), :go}}, children: []}
+      assert Renderer.normalize(node)["props"]["on_submit"] == "go"
+    end
+  end
 end
