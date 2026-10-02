@@ -3,7 +3,7 @@ defmodule Mix.Tasks.Erlfmt do
   Format `.erl` files (or check formatting with `--check`).
 
   Wraps `erlfmt`'s library API. Exists because the upstream `erlfmt` Hex package
-  ships an escript build but no `mix` task; the pre-commit checklist (`CLAUDE.md`)
+  ships an escript build but no `mix` task; the pre-commit checklist (`AGENTS.md`)
   references `mix erlfmt --check src/`, so this task makes that instruction work.
 
   Ported verbatim from mob — rext has one Erlang source (`src/rext_nif.erl`), the

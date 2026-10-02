@@ -40,7 +40,7 @@ defmodule Rext.MixProject do
       {:ex_slop, "~> 0.4", only: [:dev, :test], runtime: false},
       # erlfmt formats the Erlang NIF stub in src/.
       {:erlfmt, "~> 1.8", only: :dev, runtime: false},
-      # mix_audit — CVE scan over mix.lock. See CLAUDE.md for the app.start quirk.
+      # mix_audit — CVE scan over mix.lock. See AGENTS.md for the app.start quirk.
       {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false}
     ]
   end
