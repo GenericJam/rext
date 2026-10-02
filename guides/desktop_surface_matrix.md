@@ -253,6 +253,6 @@ These change the shape of the backlog and aren't mine to settle:
 
 - [`render_protocol.md`](render_protocol.md) — the contract all backends bind to
 - [`../PLAN.md`](../PLAN.md) — thesis, backend strategy, roadmap
-- [`../CLAUDE.md`](../CLAUDE.md) — conventions, toolchain, quality gates
+- [`../AGENTS.md`](../AGENTS.md) — conventions, toolchain, quality gates
 - mob's [`components.md`](../../mob/guides/components.md) — the component
   reference this matrix is diffed against

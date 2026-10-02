@@ -1,7 +1,7 @@
 # rext — Plan
 
 > Living planning doc. The "why" and the roadmap; durable per-decision rationale
-> goes in `decisions/`, and agent conventions in `CLAUDE.md`. Keep this current.
+> goes in `decisions/`, and agent conventions in `AGENTS.md`. Keep this current.
 
 ## The thesis
 
